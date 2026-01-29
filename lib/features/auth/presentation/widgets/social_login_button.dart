@@ -12,8 +12,7 @@ enum SocialButtonType {
 class SocialLoginButton extends StatefulWidget {
 
   const SocialLoginButton({
-    super.key,
-    required this.type,
+    required this.type, super.key,
     this.onPressed,
     this.isLoading = false,
   });
@@ -76,7 +75,6 @@ class _SocialLoginButtonState extends State<SocialLoginButton>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: config.borderColor,
-                  width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -129,7 +127,7 @@ class _SocialLoginButtonState extends State<SocialLoginButton>
   _SocialButtonConfig _getButtonConfig() {
     switch (widget.type) {
       case SocialButtonType.google:
-        return _SocialButtonConfig(
+        return const _SocialButtonConfig(
           icon: Icons.g_mobiledata_rounded,
           label: 'Entrar com Google',
           backgroundColor: AppColors.darkGrey,
@@ -139,7 +137,7 @@ class _SocialLoginButtonState extends State<SocialLoginButton>
           glowColor: AppColors.google,
         );
       case SocialButtonType.apple:
-        return _SocialButtonConfig(
+        return const _SocialButtonConfig(
           icon: Icons.apple,
           label: 'Entrar com Apple',
           backgroundColor: AppColors.white,
@@ -149,7 +147,7 @@ class _SocialLoginButtonState extends State<SocialLoginButton>
           glowColor: AppColors.white,
         );
       case SocialButtonType.facebook:
-        return _SocialButtonConfig(
+        return const _SocialButtonConfig(
           icon: Icons.facebook,
           label: 'Entrar com Facebook',
           backgroundColor: AppColors.facebook,

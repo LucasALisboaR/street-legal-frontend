@@ -20,7 +20,7 @@ class LoginUseCase {
   final AuthRepository _repository;
 
   Future<Either<AuthFailure, UserEntity>> call(LoginParams params) async {
-    return await _repository.loginWithEmail(
+    return _repository.loginWithEmail(
       email: params.email,
       password: params.password,
     );

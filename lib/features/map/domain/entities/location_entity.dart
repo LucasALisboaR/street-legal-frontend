@@ -7,8 +7,7 @@ class LocationEntity extends Equatable {
   const LocationEntity({
     required this.latitude,
     required this.longitude,
-    this.address,
-    required this.timestamp,
+    required this.timestamp, this.address,
   });
   final double latitude;
   final double longitude;
@@ -42,8 +41,7 @@ class MeetupEntity extends Equatable {
     required this.description,
     required this.location,
     required this.startTime,
-    this.endTime,
-    required this.organizerId,
+    required this.organizerId, this.endTime,
     this.participantIds = const [],
     this.coverImageUrl,
     this.isPublic = true,

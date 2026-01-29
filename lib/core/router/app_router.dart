@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:gearhead_br/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:gearhead_br/features/auth/presentation/pages/login_page.dart';
 import 'package:gearhead_br/features/auth/presentation/pages/register_page.dart';
-import 'package:gearhead_br/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:gearhead_br/features/map/presentation/pages/map_page.dart';
 import 'package:gearhead_br/features/crew/presentation/pages/crew_page.dart';
 import 'package:gearhead_br/features/events/presentation/pages/events_page.dart';
+import 'package:gearhead_br/features/map/presentation/pages/map_page.dart';
 import 'package:gearhead_br/features/moments/presentation/pages/moments_page.dart';
 import 'package:gearhead_br/features/profile/presentation/pages/profile_page.dart';
+import 'package:go_router/go_router.dart';
 
 /// Configuração de rotas do GEARHEAD BR
 /// Utiliza GoRouter para navegação declarativa

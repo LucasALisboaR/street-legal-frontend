@@ -9,12 +9,12 @@ import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart'
 
 /// Dialog para adicionar/editar veículo
 class VehicleFormDialog extends StatefulWidget {
-  final VehicleEntity? vehicle;
 
   const VehicleFormDialog({
     super.key,
     this.vehicle,
   });
+  final VehicleEntity? vehicle;
 
   @override
   State<VehicleFormDialog> createState() => _VehicleFormDialogState();
@@ -127,7 +127,6 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                   labelText: 'Marca *',
                   hintText: 'Ex: Chevrolet, Volkswagen',
                   prefixIcon: Icons.business_rounded,
-                  textInputAction: TextInputAction.next,
                 ),
 
                 const SizedBox(height: 16),
@@ -137,7 +136,6 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                   labelText: 'Modelo *',
                   hintText: 'Ex: Opala, Fusca, Civic',
                   prefixIcon: Icons.directions_car_rounded,
-                  textInputAction: TextInputAction.next,
                 ),
 
                 const SizedBox(height: 16),
@@ -151,7 +149,6 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                         hintText: '1988',
                         prefixIcon: Icons.calendar_today_rounded,
                         keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -161,7 +158,6 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                         labelText: 'Cor',
                         hintText: 'Preto',
                         prefixIcon: Icons.palette_rounded,
-                        textInputAction: TextInputAction.next,
                       ),
                     ),
                   ],
@@ -174,7 +170,6 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                   labelText: 'Apelido',
                   hintText: 'Ex: Opalão, Fuscão',
                   prefixIcon: Icons.favorite_rounded,
-                  textInputAction: TextInputAction.next,
                 ),
 
                 const SizedBox(height: 16),

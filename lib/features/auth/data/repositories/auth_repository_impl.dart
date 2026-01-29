@@ -20,9 +20,8 @@ class AuthRepositoryImpl implements AuthRepository {
         id: 'mock-user-id',
         email: email,
         displayName: 'Piloto GEARHEAD',
-        photoUrl: null,
         createdAt: DateTime.now(),
-      ));
+      ),);
     }
     
     return const Left(InvalidCredentialsFailure());
@@ -46,9 +45,8 @@ class AuthRepositoryImpl implements AuthRepository {
       id: 'social-user-${type.name}',
       email: 'user@$providerName.com'.toLowerCase(),
       displayName: 'Piloto $providerName',
-      photoUrl: null,
       createdAt: DateTime.now(),
-    ));
+    ),);
   }
 
   @override
@@ -65,9 +63,8 @@ class AuthRepositoryImpl implements AuthRepository {
       id: 'new-user-id',
       email: email,
       displayName: displayName ?? 'Novo Piloto',
-      photoUrl: null,
       createdAt: DateTime.now(),
-    ));
+    ),);
   }
 
   @override

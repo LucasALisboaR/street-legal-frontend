@@ -2,17 +2,6 @@ import 'package:equatable/equatable.dart';
 
 /// Entidade de Crew (grupo de entusiastas)
 class CrewEntity extends Equatable {
-  final String id;
-  final String name;
-  final String? description;
-  final String? imageUrl;
-  final String ownerId;
-  final List<String> memberIds;
-  final List<String> adminIds;
-  final String? city;
-  final String? state;
-  final bool isPublic;
-  final DateTime createdAt;
 
   const CrewEntity({
     required this.id,
@@ -27,6 +16,17 @@ class CrewEntity extends Equatable {
     this.isPublic = true,
     required this.createdAt,
   });
+  final String id;
+  final String name;
+  final String? description;
+  final String? imageUrl;
+  final String ownerId;
+  final List<String> memberIds;
+  final List<String> adminIds;
+  final String? city;
+  final String? state;
+  final bool isPublic;
+  final DateTime createdAt;
 
   int get memberCount => memberIds.length;
 

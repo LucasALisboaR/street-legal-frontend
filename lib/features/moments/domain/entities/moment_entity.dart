@@ -2,20 +2,6 @@ import 'package:equatable/equatable.dart';
 
 /// Entidade de Momento (post/foto)
 class MomentEntity extends Equatable {
-  final String id;
-  final String userId;
-  final String? userDisplayName;
-  final String? userAvatarUrl;
-  final String? vehicleId;
-  final String? vehicleName;
-  final String? caption;
-  final List<String> imageUrls;
-  final List<String> likeUserIds;
-  final int commentCount;
-  final double? latitude;
-  final double? longitude;
-  final String? locationName;
-  final DateTime createdAt;
 
   const MomentEntity({
     required this.id,
@@ -33,6 +19,20 @@ class MomentEntity extends Equatable {
     this.locationName,
     required this.createdAt,
   });
+  final String id;
+  final String userId;
+  final String? userDisplayName;
+  final String? userAvatarUrl;
+  final String? vehicleId;
+  final String? vehicleName;
+  final String? caption;
+  final List<String> imageUrls;
+  final List<String> likeUserIds;
+  final int commentCount;
+  final double? latitude;
+  final double? longitude;
+  final String? locationName;
+  final DateTime createdAt;
 
   int get likeCount => likeUserIds.length;
 

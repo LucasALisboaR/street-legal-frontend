@@ -35,7 +35,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
         nickname: 'Opalão',
         color: 'Preto',
         licensePlate: 'ABC-1234',
-        photoUrls: [],
+        photoUrls: const [],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       ),
@@ -48,7 +48,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
         nickname: 'Fuscão',
         color: 'Azul',
         licensePlate: 'XYZ-5678',
-        photoUrls: [],
+        photoUrls: const [],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       ),
@@ -58,7 +58,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
       status: GarageStatus.loaded,
       vehicles: mockVehicles,
       activeVehicleId: mockVehicles.isNotEmpty ? mockVehicles.first.id : null,
-    ));
+    ),);
   }
 
   Future<void> _onVehicleAdded(
@@ -76,7 +76,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
       vehicles: newVehicles,
       activeVehicleId:
           state.activeVehicleId ?? event.vehicle.id, // Define como ativo se for o primeiro
-    ));
+    ),);
   }
 
   Future<void> _onVehicleUpdated(
@@ -94,7 +94,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
     emit(state.copyWith(
       status: GarageStatus.loaded,
       vehicles: updatedVehicles,
-    ));
+    ),);
   }
 
   Future<void> _onVehicleDeleted(
@@ -119,7 +119,7 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
       vehicles: updatedVehicles,
       activeVehicleId: newActiveId,
       clearActiveVehicle: newActiveId == null,
-    ));
+    ),);
   }
 
   void _onActiveVehicleChanged(

@@ -2,22 +2,6 @@ import 'package:equatable/equatable.dart';
 
 /// Entidade de Evento automotivo
 class EventEntity extends Equatable {
-  final String id;
-  final String title;
-  final String? description;
-  final String? imageUrl;
-  final String organizerId;
-  final String? crewId;
-  final double latitude;
-  final double longitude;
-  final String? address;
-  final DateTime startDate;
-  final DateTime? endDate;
-  final List<String> participantIds;
-  final int? maxParticipants;
-  final bool isPublic;
-  final EventType type;
-  final DateTime createdAt;
 
   const EventEntity({
     required this.id,
@@ -37,6 +21,22 @@ class EventEntity extends Equatable {
     this.type = EventType.meetup,
     required this.createdAt,
   });
+  final String id;
+  final String title;
+  final String? description;
+  final String? imageUrl;
+  final String organizerId;
+  final String? crewId;
+  final double latitude;
+  final double longitude;
+  final String? address;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final List<String> participantIds;
+  final int? maxParticipants;
+  final bool isPublic;
+  final EventType type;
+  final DateTime createdAt;
 
   int get participantCount => participantIds.length;
 

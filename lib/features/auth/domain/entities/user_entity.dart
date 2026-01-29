@@ -7,9 +7,8 @@ class UserEntity extends Equatable {
   const UserEntity({
     required this.id,
     required this.email,
-    this.displayName,
+    required this.createdAt, this.displayName,
     this.photoUrl,
-    required this.createdAt,
   });
   final String id;
   final String email;

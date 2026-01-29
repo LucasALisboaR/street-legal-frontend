@@ -93,10 +93,10 @@ class EventsPage extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
+                children: const [
                   _SectionTitle(title: 'HOJE'),
-                  const SizedBox(height: 12),
-                  const _EventCard(
+                  SizedBox(height: 12),
+                  _EventCard(
                     title: 'Encontro Noturno SP',
                     type: '🚗 Encontro',
                     location: 'Av. Paulista, São Paulo',
@@ -104,8 +104,8 @@ class EventsPage extends StatelessWidget {
                     participantCount: 45,
                     isLive: true,
                   ),
-                  const SizedBox(height: 12),
-                  const _EventCard(
+                  SizedBox(height: 12),
+                  _EventCard(
                     title: 'Cars & Coffee Alphaville',
                     type: '🏆 Exposição',
                     location: 'Shopping Iguatemi',
@@ -113,10 +113,10 @@ class EventsPage extends StatelessWidget {
                     participantCount: 128,
                     isLive: false,
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   _SectionTitle(title: 'ESTA SEMANA'),
-                  const SizedBox(height: 12),
-                  const _EventCard(
+                  SizedBox(height: 12),
+                  _EventCard(
                     title: 'Rolê Serra da Cantareira',
                     type: '🛣️ Rolê',
                     location: 'Saída: Posto Shell Santana',
@@ -124,8 +124,8 @@ class EventsPage extends StatelessWidget {
                     participantCount: 23,
                     isLive: false,
                   ),
-                  const SizedBox(height: 12),
-                  const _EventCard(
+                  SizedBox(height: 12),
+                  _EventCard(
                     title: 'Track Day Interlagos',
                     type: '🏁 Track Day',
                     location: 'Autódromo de Interlagos',
@@ -133,7 +133,7 @@ class EventsPage extends StatelessWidget {
                     participantCount: 67,
                     isLive: false,
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                 ],
               ),
             ),
@@ -148,15 +148,15 @@ class EventsPage extends StatelessWidget {
 }
 
 class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isAccent;
 
   const _IconButton({
     required this.icon,
     required this.onTap,
     this.isAccent = false,
   });
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isAccent;
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +170,6 @@ class _IconButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isAccent ? AppColors.accent : AppColors.mediumGrey,
-            width: 1,
           ),
         ),
         child: Icon(
@@ -184,15 +183,15 @@ class _IconButton extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
 
   const _FilterChip({
     required this.label,
     required this.isActive,
     required this.onTap,
   });
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +206,6 @@ class _FilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isActive ? AppColors.accent : AppColors.mediumGrey,
-              width: 1,
             ),
           ),
           child: Text(
@@ -225,9 +223,9 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  final String title;
 
   const _SectionTitle({required this.title});
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -244,12 +242,6 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _EventCard extends StatelessWidget {
-  final String title;
-  final String type;
-  final String location;
-  final String time;
-  final int participantCount;
-  final bool isLive;
 
   const _EventCard({
     required this.title,
@@ -259,6 +251,12 @@ class _EventCard extends StatelessWidget {
     required this.participantCount,
     required this.isLive,
   });
+  final String title;
+  final String type;
+  final String location;
+  final String time;
+  final int participantCount;
+  final bool isLive;
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +274,6 @@ class _EventCard extends StatelessWidget {
                 BoxShadow(
                   color: AppColors.accent.withOpacity(0.2),
                   blurRadius: 12,
-                  spreadRadius: 0,
                 ),
               ]
             : null,

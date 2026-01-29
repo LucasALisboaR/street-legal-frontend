@@ -80,21 +80,19 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 40),
                 
                 // Formulário
-                NeonTextField(
+                const NeonTextField(
                   labelText: 'Nome completo',
                   hintText: 'Como você quer ser chamado',
                   prefixIcon: Icons.person_outline,
-                  textInputAction: TextInputAction.next,
                 ),
                 
                 const SizedBox(height: 20),
                 
-                NeonTextField(
+                const NeonTextField(
                   labelText: 'E-mail',
                   hintText: 'seu@email.com',
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
                 ),
                 
                 const SizedBox(height: 20),
@@ -104,7 +102,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   hintText: 'Mínimo 8 caracteres',
                   prefixIcon: Icons.lock_outline,
                   obscureText: !_isPasswordVisible,
-                  textInputAction: TextInputAction.next,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible
@@ -170,8 +167,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             fontSize: 14,
                             color: AppColors.lightGrey,
                           ),
-                          children: [
-                            const TextSpan(text: 'Ao criar uma conta, você concorda com os '),
+                          children: const [
+                            TextSpan(text: 'Ao criar uma conta, você concorda com os '),
                             TextSpan(
                               text: 'Termos de Uso',
                               style: TextStyle(
@@ -179,7 +176,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const TextSpan(text: ' e '),
+                            TextSpan(text: ' e '),
                             TextSpan(
                               text: 'Política de Privacidade',
                               style: TextStyle(

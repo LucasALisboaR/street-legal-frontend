@@ -10,10 +10,6 @@ enum GarageStatus {
 
 /// Estado do BLoC de Garagem
 class GarageState extends Equatable {
-  final GarageStatus status;
-  final List<VehicleEntity> vehicles;
-  final String? activeVehicleId;
-  final String? errorMessage;
 
   const GarageState({
     this.status = GarageStatus.initial,
@@ -21,6 +17,10 @@ class GarageState extends Equatable {
     this.activeVehicleId,
     this.errorMessage,
   });
+  final GarageStatus status;
+  final List<VehicleEntity> vehicles;
+  final String? activeVehicleId;
+  final String? errorMessage;
 
   /// Retorna o veículo ativo
   VehicleEntity? get activeVehicle {

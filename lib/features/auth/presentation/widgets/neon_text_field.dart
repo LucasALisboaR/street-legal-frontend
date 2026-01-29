@@ -104,7 +104,6 @@ class _NeonTextFieldState extends State<NeonTextField>
                       color: AppColors.accent
                           .withOpacity(0.3 * _glowAnimation.value),
                       blurRadius: 12 * _glowAnimation.value,
-                      spreadRadius: 0,
                     ),
                   ]
                 : null,
@@ -149,13 +148,12 @@ class _NeonTextFieldState extends State<NeonTextField>
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor, width: 1),
+                borderSide: BorderSide(color: borderColor),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: hasError ? AppColors.error : AppColors.mediumGrey,
-                  width: 1,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -167,7 +165,7 @@ class _NeonTextFieldState extends State<NeonTextField>
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.error, width: 1),
+                borderSide: const BorderSide(color: AppColors.error),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),

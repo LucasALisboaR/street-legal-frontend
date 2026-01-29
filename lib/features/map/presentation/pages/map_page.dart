@@ -23,26 +23,26 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Mock: eventos próximos
   final List<_MapEvent> _events = [
-    _MapEvent(
+    const _MapEvent(
       id: '1',
       name: 'Encontro Noturno SP',
-      location: const LatLng(-23.561414, -46.656078),
+      location: LatLng(-23.561414, -46.656078),
       participants: 45,
       type: EventType.meetup,
       isLive: true,
     ),
-    _MapEvent(
+    const _MapEvent(
       id: '2',
       name: 'Cars & Coffee',
-      location: const LatLng(-23.587416, -46.657333),
+      location: LatLng(-23.587416, -46.657333),
       participants: 128,
       type: EventType.carshow,
       isLive: false,
     ),
-    _MapEvent(
+    const _MapEvent(
       id: '3',
       name: 'Track Day Interlagos',
-      location: const LatLng(-23.701389, -46.696944),
+      location: LatLng(-23.701389, -46.696944),
       participants: 67,
       type: EventType.race,
       isLive: false,
@@ -51,23 +51,23 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Mock: usuários próximos
   final List<_MapUser> _nearbyUsers = [
-    _MapUser(
+    const _MapUser(
       id: '1',
       name: 'Carlos_Turbo',
       vehicle: 'Civic Si',
-      location: const LatLng(-23.553520, -46.640308),
+      location: LatLng(-23.553520, -46.640308),
     ),
-    _MapUser(
+    const _MapUser(
       id: '2',
       name: 'Opala_do_Zé',
       vehicle: 'Opala 1988',
-      location: const LatLng(-23.545520, -46.628308),
+      location: LatLng(-23.545520, -46.628308),
     ),
-    _MapUser(
+    const _MapUser(
       id: '3',
       name: 'V8_Maniaco',
       vehicle: 'Mustang GT',
-      location: const LatLng(-23.558520, -46.650308),
+      location: LatLng(-23.558520, -46.650308),
     ),
   ];
 
@@ -102,7 +102,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _currentLocation,
-              initialZoom: 13,
               minZoom: 5,
               maxZoom: 18,
               backgroundColor: AppColors.black,
@@ -137,7 +136,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                             onTap: () => _showEventDetails(event),
                             child: _EventMarker(event: event),
                           ),
-                        )),
+                        ),),
 
                   // Usuários
                   if (_showUsers)
@@ -149,7 +148,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                             onTap: () => _showUserDetails(user),
                             child: _UserMarker(user: user),
                           ),
-                        )),
+                        ),),
                 ],
               ),
             ],
@@ -198,7 +197,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                       const SizedBox(width: 12),
                       _MapButton(
                         icon: Icons.tune_rounded,
-                        onTap: () => _showFilters(),
+                        onTap: _showFilters,
                       ),
                     ],
                   ),
@@ -439,9 +438,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                 Container(
                   width: 60,
                   height: 60,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [AppColors.accent, AppColors.accentDark],
                     ),
                   ),
@@ -522,15 +521,15 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _MapButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isAccent;
 
   const _MapButton({
     required this.icon,
     required this.onTap,
     this.isAccent = false,
   });
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isAccent;
 
   @override
   Widget build(BuildContext context) {
@@ -564,10 +563,6 @@ class _MapButton extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
 
   const _FilterChip({
     required this.icon,
@@ -575,6 +570,10 @@ class _FilterChip extends StatelessWidget {
     required this.isActive,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -642,9 +641,9 @@ class _CurrentLocationMarker extends StatelessWidget {
 }
 
 class _EventMarker extends StatelessWidget {
-  final _MapEvent event;
 
   const _EventMarker({required this.event});
+  final _MapEvent event;
 
   @override
   Widget build(BuildContext context) {
@@ -662,7 +661,6 @@ class _EventMarker extends StatelessWidget {
                 ? AppColors.accent.withOpacity(0.4)
                 : Colors.black.withOpacity(0.3),
             blurRadius: 8,
-            spreadRadius: 0,
           ),
         ],
       ),
@@ -677,9 +675,9 @@ class _EventMarker extends StatelessWidget {
 }
 
 class _UserMarker extends StatelessWidget {
-  final _MapUser user;
 
   const _UserMarker({required this.user});
+  final _MapUser user;
 
   @override
   Widget build(BuildContext context) {
@@ -694,7 +692,6 @@ class _UserMarker extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
             blurRadius: 6,
-            spreadRadius: 0,
           ),
         ],
       ),
@@ -717,12 +714,6 @@ class _UserMarker extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _MapEvent {
-  final String id;
-  final String name;
-  final LatLng location;
-  final int participants;
-  final EventType type;
-  final bool isLive;
 
   const _MapEvent({
     required this.id,
@@ -732,13 +723,15 @@ class _MapEvent {
     required this.type,
     required this.isLive,
   });
+  final String id;
+  final String name;
+  final LatLng location;
+  final int participants;
+  final EventType type;
+  final bool isLive;
 }
 
 class _MapUser {
-  final String id;
-  final String name;
-  final String vehicle;
-  final LatLng location;
 
   const _MapUser({
     required this.id,
@@ -746,6 +739,10 @@ class _MapUser {
     required this.vehicle,
     required this.location,
   });
+  final String id;
+  final String name;
+  final String vehicle;
+  final LatLng location;
 }
 
 enum EventType {

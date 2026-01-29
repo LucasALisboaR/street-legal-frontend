@@ -15,9 +15,9 @@ class GarageLoadRequested extends GarageEvent {
 
 /// Adiciona um novo veículo
 class GarageVehicleAdded extends GarageEvent {
-  final VehicleEntity vehicle;
 
   const GarageVehicleAdded(this.vehicle);
+  final VehicleEntity vehicle;
 
   @override
   List<Object?> get props => [vehicle];
@@ -25,9 +25,9 @@ class GarageVehicleAdded extends GarageEvent {
 
 /// Atualiza um veículo existente
 class GarageVehicleUpdated extends GarageEvent {
-  final VehicleEntity vehicle;
 
   const GarageVehicleUpdated(this.vehicle);
+  final VehicleEntity vehicle;
 
   @override
   List<Object?> get props => [vehicle];
@@ -35,9 +35,9 @@ class GarageVehicleUpdated extends GarageEvent {
 
 /// Remove um veículo
 class GarageVehicleDeleted extends GarageEvent {
-  final String vehicleId;
 
   const GarageVehicleDeleted(this.vehicleId);
+  final String vehicleId;
 
   @override
   List<Object?> get props => [vehicleId];
@@ -45,9 +45,9 @@ class GarageVehicleDeleted extends GarageEvent {
 
 /// Altera o veículo ativo
 class GarageActiveVehicleChanged extends GarageEvent {
-  final String vehicleId;
 
   const GarageActiveVehicleChanged(this.vehicleId);
+  final String vehicleId;
 
   @override
   List<Object?> get props => [vehicleId];

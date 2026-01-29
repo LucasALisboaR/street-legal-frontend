@@ -10,13 +10,11 @@ class VehicleEntity extends Equatable {
     required this.brand,
     required this.model,
     required this.year,
-    this.nickname,
+    required this.createdAt, required this.updatedAt, this.nickname,
     this.color,
     this.licensePlate,
     this.photoUrls = const [],
     this.specs,
-    required this.createdAt,
-    required this.updatedAt,
   });
   final String id;
   final String userId;

@@ -25,7 +25,7 @@ class GarageSection extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.garage_rounded,
                         color: AppColors.accent,
                         size: 24,
@@ -200,9 +200,9 @@ class GarageSection extends StatelessWidget {
 }
 
 class _EmptyGarage extends StatelessWidget {
-  final VoidCallback onAdd;
 
   const _EmptyGarage({required this.onAdd});
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -214,12 +214,11 @@ class _EmptyGarage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.mediumGrey,
-          width: 1,
         ),
       ),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.directions_car_outlined,
             size: 48,
             color: AppColors.mediumGrey,
@@ -278,11 +277,6 @@ class _EmptyGarage extends StatelessWidget {
 }
 
 class _VehicleCard extends StatelessWidget {
-  final VehicleEntity vehicle;
-  final bool isActive;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   const _VehicleCard({
     required this.vehicle,
@@ -291,6 +285,11 @@ class _VehicleCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
   });
+  final VehicleEntity vehicle;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +312,6 @@ class _VehicleCard extends StatelessWidget {
                   BoxShadow(
                     color: AppColors.accent.withOpacity(0.3),
                     blurRadius: 12,
-                    spreadRadius: 0,
                   ),
                 ]
               : null,
@@ -422,15 +420,15 @@ class _VehicleCard extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
 
   const _ActionButton({
     required this.icon,
     required this.color,
     required this.onTap,
   });
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

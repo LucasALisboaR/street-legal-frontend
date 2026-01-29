@@ -155,11 +155,11 @@ class AppTheme {
         
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.mediumGrey, width: 1),
+          borderSide: const BorderSide(color: AppColors.mediumGrey),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.mediumGrey, width: 1),
+          borderSide: const BorderSide(color: AppColors.mediumGrey),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -167,7 +167,7 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -218,7 +218,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.white,
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-          side: const BorderSide(color: AppColors.mediumGrey, width: 1),
+          side: const BorderSide(color: AppColors.mediumGrey),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -251,7 +251,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.mediumGrey, width: 1),
+          side: const BorderSide(color: AppColors.mediumGrey),
         ),
       ),
       

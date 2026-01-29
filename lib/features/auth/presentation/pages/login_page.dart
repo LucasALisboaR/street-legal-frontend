@@ -129,7 +129,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       // ═══════════════════════════════════════════════════════
                       // LOGO E TÍTULO
                       // ═══════════════════════════════════════════════════════
-                      const AnimatedLogo(size: 120),
+                      const AnimatedLogo(),
                       const SizedBox(height: 24),
                       
                       ShaderMask(
@@ -211,7 +211,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               hintText: 'seu@email.com',
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
               errorText: state.emailError,
               enabled: !isLoading,
               onChanged: (value) => bloc.add(LoginEmailChanged(value)),

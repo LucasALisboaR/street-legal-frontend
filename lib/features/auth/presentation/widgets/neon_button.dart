@@ -5,8 +5,7 @@ import 'package:gearhead_br/core/theme/app_colors.dart';
 class NeonButton extends StatefulWidget {
 
   const NeonButton({
-    super.key,
-    required this.text,
+    required this.text, super.key,
     this.onPressed,
     this.isLoading = false,
     this.isEnabled = true,
@@ -68,7 +67,6 @@ class _NeonButtonState extends State<NeonButton>
                       color: AppColors.accent
                           .withOpacity(0.4 * _pulseAnimation.value),
                       blurRadius: 20 * _pulseAnimation.value,
-                      spreadRadius: 0,
                     ),
                   ]
                 : null,
@@ -98,7 +96,6 @@ class _NeonButtonState extends State<NeonButton>
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isActive ? AppColors.accent : AppColors.mediumGrey,
-                width: 1,
               ),
             ),
             child: Center(

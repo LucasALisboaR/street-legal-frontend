@@ -67,7 +67,7 @@ class _AnimatedLogoState extends State<AnimatedLogo>
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(
+                gradient: const RadialGradient(
                   colors: [
                     AppColors.darkGrey,
                     AppColors.black,
@@ -84,7 +84,7 @@ class _AnimatedLogoState extends State<AnimatedLogo>
                   children: [
                     // Ícone de engrenagem/velocímetro
                     ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
+                      shaderCallback: (bounds) => const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
@@ -101,7 +101,7 @@ class _AnimatedLogoState extends State<AnimatedLogo>
                     const SizedBox(height: 4),
                     // Texto GH
                     ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
+                      shaderCallback: (bounds) => const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [

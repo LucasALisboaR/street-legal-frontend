@@ -137,13 +137,13 @@ class CrewPage extends StatelessWidget {
 }
 
 class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
 
   const _IconButton({
     required this.icon,
     required this.onTap,
   });
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +157,6 @@ class _IconButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: AppColors.mediumGrey,
-            width: 1,
           ),
         ),
         child: Icon(
@@ -171,15 +170,15 @@ class _IconButton extends StatelessWidget {
 }
 
 class _TabButton extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
 
   const _TabButton({
     required this.label,
     required this.isActive,
     required this.onTap,
   });
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +191,6 @@ class _TabButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isActive ? AppColors.accent : AppColors.mediumGrey,
-            width: 1,
           ),
         ),
         child: Text(
@@ -209,11 +207,6 @@ class _TabButton extends StatelessWidget {
 }
 
 class _CrewCard extends StatelessWidget {
-  final String name;
-  final String description;
-  final int memberCount;
-  final String location;
-  final String imageInitial;
 
   const _CrewCard({
     required this.name,
@@ -222,6 +215,11 @@ class _CrewCard extends StatelessWidget {
     required this.location,
     required this.imageInitial,
   });
+  final String name;
+  final String description;
+  final int memberCount;
+  final String location;
+  final String imageInitial;
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +230,6 @@ class _CrewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.mediumGrey,
-          width: 1,
         ),
       ),
       child: Row(
@@ -288,7 +285,7 @@ class _CrewCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.people_outline,
                       size: 14,
                       color: AppColors.accent,
@@ -303,7 +300,7 @@ class _CrewCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Icon(
+                    const Icon(
                       Icons.location_on_outlined,
                       size: 14,
                       color: AppColors.lightGrey,

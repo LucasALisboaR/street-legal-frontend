@@ -120,13 +120,13 @@ class MomentsPage extends StatelessWidget {
 }
 
 class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
 
   const _IconButton({
     required this.icon,
     required this.onTap,
   });
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -150,13 +150,6 @@ class _IconButton extends StatelessWidget {
 }
 
 class _MomentCard extends StatelessWidget {
-  final String username;
-  final String vehicleName;
-  final String timeAgo;
-  final String caption;
-  final int likeCount;
-  final int commentCount;
-  final bool isLiked;
 
   const _MomentCard({
     required this.username,
@@ -167,6 +160,13 @@ class _MomentCard extends StatelessWidget {
     required this.commentCount,
     required this.isLiked,
   });
+  final String username;
+  final String vehicleName;
+  final String timeAgo;
+  final String caption;
+  final int likeCount;
+  final int commentCount;
+  final bool isLiked;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +176,6 @@ class _MomentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.mediumGrey,
-          width: 1,
         ),
       ),
       child: Column(
@@ -191,9 +190,9 @@ class _MomentCard extends StatelessWidget {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [AppColors.accent, AppColors.accentDark],
                     ),
                   ),
@@ -223,7 +222,7 @@ class _MomentCard extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.directions_car,
                             size: 12,
                             color: AppColors.accent,
@@ -269,7 +268,7 @@ class _MomentCard extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.image_outlined,
                     size: 48,
                     color: AppColors.mediumGrey,
@@ -350,10 +349,6 @@ class _MomentCard extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final VoidCallback onTap;
 
   const _ActionButton({
     required this.icon,
@@ -361,6 +356,10 @@ class _ActionButton extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

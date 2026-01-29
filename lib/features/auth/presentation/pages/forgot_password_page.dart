@@ -108,7 +108,7 @@ class ForgotPasswordPage extends StatelessWidget {
                 const SizedBox(height: 48),
                 
                 // Campo de e-mail
-                NeonTextField(
+                const NeonTextField(
                   labelText: 'E-mail',
                   hintText: 'seu@email.com',
                   prefixIcon: Icons.email_outlined,

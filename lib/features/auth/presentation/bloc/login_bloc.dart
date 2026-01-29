@@ -34,7 +34,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       email: event.email,
       status: LoginStatus.initial,
       clearError: true,
-    ));
+    ),);
   }
 
   void _onPasswordChanged(
@@ -45,7 +45,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       password: event.password,
       status: LoginStatus.initial,
       clearError: true,
-    ));
+    ),);
   }
 
   void _onPasswordVisibilityToggled(
@@ -54,7 +54,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   ) {
     emit(state.copyWith(
       isPasswordVisible: !state.isPasswordVisible,
-    ));
+    ),);
   }
 
   Future<void> _onSubmitted(
@@ -73,11 +73,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       (failure) => emit(state.copyWith(
         status: LoginStatus.failure,
         errorMessage: failure.message,
-      )),
+      ),),
       (user) => emit(state.copyWith(
         status: LoginStatus.success,
         user: user,
-      )),
+      ),),
     );
   }
 
@@ -93,11 +93,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       (failure) => emit(state.copyWith(
         status: LoginStatus.failure,
         errorMessage: failure.message,
-      )),
+      ),),
       (user) => emit(state.copyWith(
         status: LoginStatus.success,
         user: user,
-      )),
+      ),),
     );
   }
 
@@ -113,11 +113,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       (failure) => emit(state.copyWith(
         status: LoginStatus.failure,
         errorMessage: failure.message,
-      )),
+      ),),
       (user) => emit(state.copyWith(
         status: LoginStatus.success,
         user: user,
-      )),
+      ),),
     );
   }
 
@@ -133,11 +133,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       (failure) => emit(state.copyWith(
         status: LoginStatus.failure,
         errorMessage: failure.message,
-      )),
+      ),),
       (user) => emit(state.copyWith(
         status: LoginStatus.success,
         user: user,
-      )),
+      ),),
     );
   }
 }

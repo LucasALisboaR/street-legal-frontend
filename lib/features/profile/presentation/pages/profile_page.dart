@@ -66,26 +66,26 @@ class _ProfileView extends StatelessWidget {
             // Conteúdo
             Expanded(
               child: ListView(
-                children: [
+                children: const [
                   // Informações do usuário
-                  const _UserInfoSection(),
+                  _UserInfoSection(),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
 
                   // Estatísticas
-                  const _StatsSection(),
+                  _StatsSection(),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
 
                   // Garagem
-                  const GarageSection(),
+                  GarageSection(),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
 
                   // Menu de opções
-                  const _MenuSection(),
+                  _MenuSection(),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                 ],
               ),
             ),
@@ -152,13 +152,13 @@ class _ProfileView extends StatelessWidget {
 }
 
 class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
 
   const _IconButton({
     required this.icon,
     required this.onTap,
   });
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +172,6 @@ class _IconButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: AppColors.mediumGrey,
-            width: 1,
           ),
         ),
         child: Icon(
@@ -213,7 +212,6 @@ class _UserInfoSection extends StatelessWidget {
                 BoxShadow(
                   color: AppColors.accent.withOpacity(0.3),
                   blurRadius: 12,
-                  spreadRadius: 0,
                 ),
               ],
             ),
@@ -252,10 +250,10 @@ class _UserInfoSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
+                const Row(
                   children: [
                     _Badge(label: '🏆 Nível 5'),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     _Badge(label: '🔥 Ativo'),
                   ],
                 ),
@@ -289,9 +287,9 @@ class _UserInfoSection extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  final String label;
 
   const _Badge({required this.label});
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -335,13 +333,13 @@ class _StatsSection extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _StatItem(value: '12', label: 'Eventos'),
+            const _StatItem(value: '12', label: 'Eventos'),
             _Divider(),
-            _StatItem(value: '3', label: 'Crews'),
+            const _StatItem(value: '3', label: 'Crews'),
             _Divider(),
-            _StatItem(value: '156', label: 'Seguidores'),
+            const _StatItem(value: '156', label: 'Seguidores'),
             _Divider(),
-            _StatItem(value: '89', label: 'Seguindo'),
+            const _StatItem(value: '89', label: 'Seguindo'),
           ],
         ),
       ),
@@ -350,10 +348,10 @@ class _StatsSection extends StatelessWidget {
 }
 
 class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
 
   const _StatItem({required this.value, required this.label});
+  final String value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -432,15 +430,15 @@ class _MenuSection extends StatelessWidget {
 }
 
 class _MenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 
   const _MenuItem({
     required this.icon,
     required this.label,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

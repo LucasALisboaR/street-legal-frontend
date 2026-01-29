@@ -16,12 +16,12 @@ enum NavItem {
 /// Barra de navegação inferior reutilizável
 /// Design inspirado na cultura automotiva com efeito neon
 class BottomNavBar extends StatelessWidget {
-  final NavItem currentItem;
 
   const BottomNavBar({
     super.key,
     required this.currentItem,
   });
+  final NavItem currentItem;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,6 @@ class BottomNavBar extends StatelessWidget {
         border: Border(
           top: BorderSide(
             color: AppColors.mediumGrey.withOpacity(0.5),
-            width: 1,
           ),
         ),
         boxShadow: [
@@ -112,12 +111,6 @@ class BottomNavBar extends StatelessWidget {
 }
 
 class _NavItemWidget extends StatefulWidget {
-  final NavItem item;
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
 
   const _NavItemWidget({
     required this.item,
@@ -127,6 +120,12 @@ class _NavItemWidget extends StatefulWidget {
     required this.isActive,
     required this.onTap,
   });
+  final NavItem item;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
 
   @override
   State<_NavItemWidget> createState() => _NavItemWidgetState();
@@ -181,7 +180,6 @@ class _NavItemWidgetState extends State<_NavItemWidget>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: AppColors.accent.withOpacity(0.3),
-                    width: 1,
                   ),
                 )
               : null,

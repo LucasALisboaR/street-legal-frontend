@@ -13,7 +13,7 @@ Future<void> configureDependencies() async {
   // ═══════════════════════════════════════════════════════════════════════════
   
   getIt.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(),
+    AuthRepositoryImpl.new,
   );
 
   // ═══════════════════════════════════════════════════════════════════════════

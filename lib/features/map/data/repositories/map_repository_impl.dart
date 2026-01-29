@@ -15,7 +15,7 @@ class MapRepositoryImpl implements MapRepository {
       longitude: -46.633308,
       address: 'São Paulo, SP',
       timestamp: DateTime.now(),
-    ));
+    ),);
   }
 
   @override
@@ -40,8 +40,7 @@ class MapRepositoryImpl implements MapRepository {
         ),
         startTime: DateTime.now().add(const Duration(hours: 3)),
         organizerId: 'user-1',
-        participantIds: ['user-2', 'user-3', 'user-4'],
-        isPublic: true,
+        participantIds: const ['user-2', 'user-3', 'user-4'],
       ),
       MeetupEntity(
         id: '2',
@@ -55,8 +54,7 @@ class MapRepositoryImpl implements MapRepository {
         ),
         startTime: DateTime.now().add(const Duration(days: 1)),
         organizerId: 'user-5',
-        participantIds: ['user-6', 'user-7'],
-        isPublic: true,
+        participantIds: const ['user-6', 'user-7'],
       ),
     ]);
   }
@@ -70,7 +68,7 @@ class MapRepositoryImpl implements MapRepository {
     await Future.delayed(const Duration(milliseconds: 500));
     
     // Mock: retorna alguns usuários próximos
-    return Right([
+    return const Right([
       {
         'id': 'user-2',
         'displayName': 'Carlos Turbo',

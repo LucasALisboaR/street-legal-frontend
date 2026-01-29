@@ -9,7 +9,7 @@ class LoginWithSocialUseCase {
   final AuthRepository _repository;
 
   Future<Either<AuthFailure, UserEntity>> call(SocialAuthType type) async {
-    return await _repository.loginWithSocial(type: type);
+    return _repository.loginWithSocial(type: type);
   }
 }
 
