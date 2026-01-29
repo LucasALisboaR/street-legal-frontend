@@ -12,7 +12,6 @@ Radar Gearhead: Visualize carros e entusiastas num raio próximo em tempo real.
 
 HeatSpots: Áreas pulsantes no mapa que indicam alta concentração de veículos (pontos de encontro populares).
 
-Botão "Bora?": Convite instantâneo para encontros espontâneos ou "caronas" em comboio.
 
 Segurança (Modo Ghost): Localização aproximada ou invisibilidade total para garantir a segurança dos veículos.
 

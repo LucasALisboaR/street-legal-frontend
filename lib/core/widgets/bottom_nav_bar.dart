@@ -52,7 +52,7 @@ class BottomNavBar extends StatelessWidget {
                 item: NavItem.map,
                 icon: Icons.explore_outlined,
                 activeIcon: Icons.explore,
-                label: 'Discover',
+                label: 'Explorar',
                 isActive: currentItem == NavItem.map,
                 onTap: () => _navigateTo(context, NavItem.map),
               ),
@@ -60,7 +60,7 @@ class BottomNavBar extends StatelessWidget {
                 item: NavItem.crew,
                 icon: Icons.groups_outlined,
                 activeIcon: Icons.groups,
-                label: 'Crews',
+                label: 'Equipes',
                 isActive: currentItem == NavItem.crew,
                 onTap: () => _navigateTo(context, NavItem.crew),
               ),
@@ -68,23 +68,23 @@ class BottomNavBar extends StatelessWidget {
                 item: NavItem.events,
                 icon: Icons.event_outlined,
                 activeIcon: Icons.event,
-                label: 'Events',
+                label: 'Eventos',
                 isActive: currentItem == NavItem.events,
                 onTap: () => _navigateTo(context, NavItem.events),
               ),
-              _NavItemWidget(
-                item: NavItem.moments,
-                icon: Icons.photo_library_outlined,
-                activeIcon: Icons.photo_library,
-                label: 'Moments',
-                isActive: currentItem == NavItem.moments,
-                onTap: () => _navigateTo(context, NavItem.moments),
-              ),
+              // _NavItemWidget(
+              //   item: NavItem.moments,
+              //   icon: Icons.photo_library_outlined,
+              //   activeIcon: Icons.photo_library,
+              //   label: 'Moments',
+              //   isActive: currentItem == NavItem.moments,
+              //   onTap: () => _navigateTo(context, NavItem.moments),
+              // ),
               _NavItemWidget(
                 item: NavItem.profile,
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
-                label: 'Profile',
+                label: 'Perfil',
                 isActive: currentItem == NavItem.profile,
                 onTap: () => _navigateTo(context, NavItem.profile),
               ),
@@ -109,7 +109,6 @@ class BottomNavBar extends StatelessWidget {
     context.go(route);
   }
 }
-
 class _NavItemWidget extends StatefulWidget {
 
   const _NavItemWidget({
@@ -212,4 +211,5 @@ class _NavItemWidgetState extends State<_NavItemWidget>
     );
   }
 }
+
 
