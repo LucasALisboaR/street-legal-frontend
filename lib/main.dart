@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_theme.dart';
+import 'firebase_options.dart';
 
 /// GEARHEAD BR - Rede social para entusiastas automotivos
 /// 
@@ -12,6 +14,11 @@ import 'package:gearhead_br/core/theme/app_theme.dart';
 /// DI: GetIt
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   
   // Configurar orientação da tela (portrait apenas)
   await SystemChrome.setPreferredOrientations([
