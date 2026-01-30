@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Serviço para gerenciar permissões e obter localização em tempo real
+/// 
+/// OTIMIZAÇÕES IMPLEMENTADAS:
+/// - LocationAccuracy.bestForNavigation para máxima precisão
+/// - distanceFilter de 2 metros para atualizações frequentes mas não excessivas
+/// - Intervalo explícito de 500ms no Android para evitar "lotes" de updates
 class LocationService {
   /// Verifica se as permissões de localização estão concedidas
   Future<bool> hasLocationPermission() async {
@@ -51,27 +57,64 @@ class LocationService {
     }
 
     try {
-      // Obtém a localização atual com alta precisão
+      // Obtém a localização atual com máxima precisão para navegação
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: const Duration(seconds: 15),
       );
     } catch (e) {
       return null;
     }
   }
 
-  /// Obtém atualizações de localização em tempo real
-  /// Retorna um stream de posições
+  /// Obtém atualizações de localização em tempo real otimizadas para navegação
+  /// 
+  /// CONFIGURAÇÕES OTIMIZADAS:
+  /// - accuracy: bestForNavigation - máxima precisão para uso veicular
+  /// - distanceFilter: 2 metros - atualiza com frequência mas evita spam
+  /// - Android: intervalo de 500ms para evitar "lotes" de atualizações
+  /// - iOS: usa configurações nativas otimizadas
   Stream<Position> getPositionStream({
-    LocationAccuracy accuracy = LocationAccuracy.high,
-    int distanceFilter = 10, // metros
+    LocationAccuracy accuracy = LocationAccuracy.bestForNavigation,
+    int distanceFilter = 2, // Atualiza a cada 2 metros para movimento suave
   }) {
-    return Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
+    // Configurações específicas por plataforma para melhor performance
+    late LocationSettings locationSettings;
+
+    if (Platform.isAndroid) {
+      // Android: define intervalo explícito para evitar updates em lotes
+      locationSettings = AndroidSettings(
         accuracy: accuracy,
         distanceFilter: distanceFilter,
-      ),
+        // Intervalo de 500ms - bom balanço entre fluidez e performance
+        intervalDuration: const Duration(milliseconds: 500),
+        // Mantém GPS ativo mesmo em foreground (importante para navegação)
+        forceLocationManager: false,
+        // Usa Fused Location Provider para melhor precisão
+        useMSLAltitude: false,
+      );
+    } else if (Platform.isIOS) {
+      // iOS: configurações específicas para navegação
+      locationSettings = AppleSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        // Atividade de navegação - iOS otimiza para uso veicular
+        activityType: ActivityType.automotiveNavigation,
+        // Permite pausar atualizações automaticamente se parado
+        pauseLocationUpdatesAutomatically: false,
+        // Mantém atualizando em background
+        showBackgroundLocationIndicator: true,
+      );
+    } else {
+      // Fallback para outras plataformas
+      locationSettings = LocationSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+      );
+    }
+
+    return Geolocator.getPositionStream(
+      locationSettings: locationSettings,
     );
   }
 
@@ -88,4 +131,3 @@ class LocationService {
     return await requestLocationPermission();
   }
 }
-

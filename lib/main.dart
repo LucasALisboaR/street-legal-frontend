@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_theme.dart';
+import 'package:gearhead_br/core/constants/mapbox_constants.dart';
 import 'firebase_options.dart';
 
 /// GEARHEAD BR - Rede social para entusiastas automotivos
@@ -38,6 +40,9 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+  
+  // Inicializar Mapbox com o access token
+  MapboxOptions.setAccessToken(MapboxConstants.accessToken);
   
   // Inicializar injeção de dependências
   await configureDependencies();

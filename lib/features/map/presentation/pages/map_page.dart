@@ -1,21 +1,25 @@
 import 'dart:async';
-import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/core/di/injection.dart';
-import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
-import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart' as map_repo;
-import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
-import 'package:gearhead_br/features/map/data/services/location_service.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_event.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
+import 'package:gearhead_br/features/map/presentation/widgets/mapbox_map_widget.dart';
+import 'package:gearhead_br/features/map/presentation/widgets/navigation_panel.dart';
+import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart'
+    as nav_entities;
 
 /// Página do Mapa - Tela principal do app
 /// Exibe localização, eventos e usuários próximos
+/// Suporta dois modos: Normal (tracking) e Drive (navegação)
+/// 
+/// OTIMIZAÇÃO: Usa MapBloc como singleton para manter estado entre navegações.
+/// Isso evita recarregar o mapa toda vez que o usuário volta para esta tela.
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -23,451 +27,443 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
-  late MapController _mapController;
-  late AnimationController _fabAnimationController;
-  late AnimationController _markerAnimationController;
-  late MapRepository _mapRepository;
-  late LocationService _locationService;
-  StreamSubscription<Position>? _locationSubscription;
-  final StreamController<Position> _positionStreamController = StreamController<Position>.broadcast();
-
-  // Localização atual do usuário
-  LatLng? _currentLocation;
-  LatLng? _targetLocation;
-  double _currentHeading = 0.0;
-  double _targetHeading = 0.0;
-  bool _isLoadingLocation = true;
-  String? _locationError;
-
-  /// Calcula o heading (direção) entre duas coordenadas
-  double _calculateHeading(LatLng from, LatLng to) {
-    final lat1 = from.latitude * math.pi / 180;
-    final lat2 = to.latitude * math.pi / 180;
-    final dLon = (to.longitude - from.longitude) * math.pi / 180;
-
-    final y = math.sin(dLon) * math.cos(lat2);
-    final x = math.cos(lat1) * math.sin(lat2) -
-        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
-
-    var heading = math.atan2(y, x);
-    heading = heading * 180 / math.pi;
-    heading = (heading + 360) % 360; // Normaliza para 0-360
-
-    return heading;
-  }
+class _MapPageState extends State<MapPage> {
+  late final MapBloc _mapBloc;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _mapController = MapController();
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _markerAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _mapRepository = getIt<MapRepository>();
-    _locationService = getIt<LocationService>();
+    _mapBloc = getIt<MapBloc>();
     
-    _loadCurrentLocation();
-    // Inicia stream de localização em tempo real
-    _startLocationStream();
+    // Inicializa apenas uma vez se ainda não tiver posição
+    if (_mapBloc.state.userPosition == null && !_initialized) {
+      _initialized = true;
+      _mapBloc.add(const MapInitialized());
+    }
   }
-
-  /// Inicia o stream de localização em tempo real
-  Future<void> _startLocationStream() async {
-    // Aguarda a primeira localização ser carregada
-    await Future<void>.delayed(const Duration(seconds: 2));
-
-    // Verifica permissões
-    final hasPermission = await _locationService.checkAndRequestPermissions();
-    if (!hasPermission) return;
-
-    // Inicia o stream de localização
-    // distanceFilter: 10 metros - atualiza quando o usuário se move pelo menos 10m
-    _locationSubscription = _locationService.getPositionStream(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // metros - reduz frequência de atualizações
-    ).listen(
-      (position) {
-        if (mounted && !_isLoadingLocation) {
-          final newLocation = LatLng(position.latitude, position.longitude);
-          
-          // Calcula heading se disponível, senão calcula baseado no movimento
-          double newHeading = _currentHeading;
-          if (position.heading.isFinite && position.heading > 0) {
-            newHeading = position.heading;
-          } else if (_currentLocation != null) {
-            newHeading = _calculateHeading(_currentLocation!, newLocation);
-          }
-          
-          // Atualiza apenas se a localização mudou significativamente
-          if (_currentLocation == null || 
-              (newLocation.latitude != _currentLocation!.latitude || 
-               newLocation.longitude != _currentLocation!.longitude)) {
-            setState(() {
-              _targetLocation = newLocation;
-              _targetHeading = newHeading;
-            });
-
-            // Inicia animação
-            _markerAnimationController.forward(from: 0.0);
-
-            // Envia posição para o stream
-            _positionStreamController.add(position);
-
-            // Salva a última posição (sem await para não bloquear)
-            _saveUserLocation(LocationEntity(
-              latitude: position.latitude,
-              longitude: position.longitude,
-              timestamp: position.timestamp,
-            ));
-          }
-        }
-      },
-      onError: (error) {
-        // Ignora erros no stream silenciosamente
-      },
-    );
-  }
-
-  /// Salva a última posição do usuário
-  Future<void> _saveUserLocation(LocationEntity location) async {
-    await _mapRepository.updateUserLocation(location);
-  }
-
-  /// Carrega a localização atual do usuário
-  Future<void> _loadCurrentLocation() async {
-    setState(() {
-      _isLoadingLocation = true;
-      _locationError = null;
-    });
-
-    final result = await _mapRepository.getCurrentLocation();
-
-    result.fold(
-      (failure) {
-        setState(() {
-          _isLoadingLocation = false;
-          if (failure is map_repo.LocationPermissionFailure) {
-            _locationError = 'Permissão de localização negada. Por favor, ative nas configurações.';
-          } else if (failure is map_repo.LocationServiceFailure) {
-            _locationError = 'Serviço de localização desativado. Por favor, ative o GPS.';
-          } else {
-            _locationError = 'Erro ao obter localização.';
-          }
-          // Usa localização padrão (São Paulo) se não conseguir obter
-          _currentLocation = const LatLng(-23.550520, -46.633308);
-        });
-      },
-      (location) {
-        if (mounted) {
-          final newLocation = LatLng(location.latitude, location.longitude);
-          final isFirstLoad = _currentLocation == null;
-          
-          setState(() {
-            _isLoadingLocation = false;
-            _currentLocation = newLocation;
-            _targetLocation = newLocation;
-            _locationError = null;
-          });
-          
-          // Envia posição inicial para o stream
-          _positionStreamController.add(
-            Position(
-              latitude: location.latitude,
-              longitude: location.longitude,
-              timestamp: location.timestamp,
-              accuracy: 0,
-              altitude: 0,
-              heading: _currentHeading,
-              speed: 0,
-              speedAccuracy: 0,
-              altitudeAccuracy: 0,
-              headingAccuracy: 0,
-            ),
-          );
-          
-          // Salva a última posição
-          _saveUserLocation(location);
-          // Move o mapa para a localização atual apenas na primeira vez
-          if (isFirstLoad) {
-            _mapController.move(newLocation, 15);
-          }
-        }
-      },
-    );
-  }
-
 
   @override
-  void dispose() {
-    _locationSubscription?.cancel();
-    _positionStreamController.close();
-    _mapController.dispose();
-    _fabAnimationController.dispose();
-    _markerAnimationController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _mapBloc,
+      child: const _MapPageContent(),
+    );
   }
+}
+
+class _MapPageContent extends StatefulWidget {
+  const _MapPageContent();
+
+  @override
+  State<_MapPageContent> createState() => _MapPageContentState();
+}
+
+class _MapPageContentState extends State<_MapPageContent> {
+  MapboxMap? _mapboxMap;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.black,
-      body: Stack(
-        children: [
-          // Mapa
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentLocation ?? const LatLng(-23.550520, -46.633308),
-              initialZoom: 15,
-              minZoom: 5,
-              maxZoom: 18,
-              backgroundColor: AppColors.black,
-            ),
+      body: BlocConsumer<MapBloc, MapState>(
+        listenWhen: (previous, current) =>
+            previous.locationError != current.locationError &&
+            current.locationError != null,
+        listener: (context, state) {
+          // Mostra snackbar em caso de erro
+          if (state.locationError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.locationError!),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          // ═══════════════════════════════════════════════════════════════════
+          // LOADING FULLSCREEN: Mostra loading até ter localização do usuário
+          // Isso evita mostrar o mapa em posição errada e depois "pular"
+          // ═══════════════════════════════════════════════════════════════════
+          if (state.userPosition == null) {
+            return _buildFullScreenLoading(context, state);
+          }
+
+          return Stack(
             children: [
-              // Tile Layer (OpenStreetMap com estilo dark)
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.gearheadbr.app',
-                retinaMode: true,
+              // Mapa Mapbox - só exibe quando tem localização
+              MapboxMapWidget(
+                mapState: state,
+                onMapCreated: (mapboxMap) {
+                  _mapboxMap = mapboxMap;
+                },
               ),
 
-              // Marcador animado do usuário
-              if (_currentLocation != null)
-                AnimatedBuilder(
-                  animation: _markerAnimationController,
-                  builder: (context, child) {
-                    // Interpola posição
-                    final animatedLocation = _targetLocation != null &&
-                            _currentLocation != null
-                        ? LatLng(
-                            _currentLocation!.latitude +
-                                (_targetLocation!.latitude -
-                                        _currentLocation!.latitude) *
-                                    _markerAnimationController.value,
-                            _currentLocation!.longitude +
-                                (_targetLocation!.longitude -
-                                        _currentLocation!.longitude) *
-                                    _markerAnimationController.value,
-                          )
-                        : _currentLocation!;
-
-                    // Interpola heading (trata ciclo 359° -> 0°)
-                    double animatedHeading = _currentHeading;
-                    if (_targetHeading != _currentHeading) {
-                      var diff = _targetHeading - _currentHeading;
-                      if (diff > 180) diff -= 360;
-                      if (diff < -180) diff += 360;
-                      animatedHeading = _currentHeading +
-                          diff * _markerAnimationController.value;
-                    }
-
-                    // Atualiza posição atual quando animação termina
-                    if (_markerAnimationController.isCompleted &&
-                        _targetLocation != null) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() {
-                            _currentLocation = _targetLocation;
-                            _currentHeading = _targetHeading;
-                          });
-                          _markerAnimationController.reset();
-                        }
-                      });
-                    }
-
-                    // Converte heading de graus para radianos
-                    final headingRadians = animatedHeading * math.pi / 180;
-
-                    return MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: animatedLocation,
-                          width: 40,
-                          height: 40,
-                          alignment: Alignment.center,
-                          child: Transform.rotate(
-                            angle: headingRadians,
-                            child: _DirectionArrowMarker(),
-                          ),
-                        ),
-                      ],
-                    );
+              // Painel de navegação (visível apenas no modo Drive)
+              if (state.isNavigating)
+                NavigationPanel(
+                  mapState: state,
+                  onStopNavigation: () {
+                    context.read<MapBloc>().add(const NavigationStopped());
                   },
                 ),
-            ],
-          ),
 
-          // Header overlay
-          SafeArea(
-            child: Column(
-              children: [
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.darkGrey.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.mediumGrey,
+              // Header overlay (search bar) - oculto durante navegação
+              if (!state.isNavigating) _buildHeader(context, state),
+
+              // Botões de controle do mapa
+              _buildMapControls(context, state),
+
+              // Botão de iniciar navegação (quando há destino selecionado)
+              if (state.hasDestination && !state.isNavigating)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: StartNavigationButton(
+                    destination: state.selectedDestination!,
+                    isCalculating: state.isCalculatingRoute,
+                    onStartNavigation: () {
+                      context.read<MapBloc>().add(
+                            NavigationStarted(
+                              destination: state.selectedDestination!,
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 16),
-                              const Icon(
-                                Icons.search_rounded,
-                                color: AppColors.lightGrey,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Buscar eventos, crews, lugares...',
-                                  style: GoogleFonts.rajdhani(
-                                    fontSize: 14,
-                                    color: AppColors.lightGrey,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _MapButton(
-                        icon: Icons.tune_rounded,
-                        onTap: _showFilters,
-                      ),
-                    ],
+                          );
+                    },
                   ),
                 ),
 
-              ],
+              // Bottom Navigation
+              if (!state.isNavigating)
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: BottomNavBar(currentItem: NavItem.map),
+                ),
+
+              // Indicador de erro de localização (dentro do mapa)
+              if (state.locationError != null && !state.isNavigating)
+                _buildErrorIndicator(context, state),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Loading fullscreen enquanto obtém localização
+  Widget _buildFullScreenLoading(BuildContext context, MapState state) {
+    return Container(
+      color: AppColors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Ícone animado
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.8, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.accent,
+                      size: 40,
+                    ),
+                  ),
+                );
+              },
+              onEnd: () {
+                // Repetir animação
+                if (mounted) setState(() {});
+              },
             ),
-          ),
-
-          // Botões do mapa (zoom, localização)
-          Positioned(
-            right: 16,
-            bottom: 100,
-            child: Column(
-              children: [
-                _MapButton(
-                  icon: Icons.add,
-                  onTap: () => _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom + 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _MapButton(
-                  icon: Icons.remove,
-                  onTap: () => _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom - 1,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _MapButton(
-                  icon: _isLoadingLocation ? Icons.refresh : Icons.my_location,
-                  isAccent: true,
-                  onTap: () {
-                    if (_currentLocation != null) {
-                      _mapController.move(_currentLocation!, 15);
-                    } else {
-                      _loadCurrentLocation();
-                    }
-                  },
-                ),
-              ],
+            const SizedBox(height: 24),
+            
+            // Texto de status
+            Text(
+              state.isLoadingLocation
+                  ? 'Obtendo sua localização...'
+                  : state.locationError != null
+                      ? 'Erro ao obter localização'
+                      : 'Iniciando mapa...',
+              style: GoogleFonts.rajdhani(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white,
+              ),
             ),
-          ),
-
-
-          // Bottom Navigation
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavBar(currentItem: NavItem.map),
-          ),
-
-          // Indicador de carregamento ou erro
-          if (_isLoadingLocation || _locationError != null)
-            Positioned(
-              top: 100,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _locationError != null
-                      ? Colors.red.withOpacity(0.9)
-                      : AppColors.darkGrey.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _locationError != null
-                        ? Colors.red
-                        : AppColors.mediumGrey,
-                  ),
+            const SizedBox(height: 8),
+            
+            // Subtexto
+            Text(
+              'Aguarde um momento',
+              style: GoogleFonts.rajdhani(
+                fontSize: 14,
+                color: AppColors.lightGrey,
+              ),
+            ),
+            const SizedBox(height: 32),
+            
+            // Indicador de progresso ou botão de retry
+            if (state.isLoadingLocation)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
                 ),
-                child: Row(
-                  children: [
-                    if (_isLoadingLocation)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 20,
-                      ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _isLoadingLocation
-                            ? 'Obtendo localização...'
-                            : _locationError ?? 'Erro desconhecido',
-                        style: GoogleFonts.rajdhani(
-                          fontSize: 14,
-                          color: AppColors.white,
-                        ),
+              )
+            else if (state.locationError != null)
+              Column(
+                children: [
+                  Text(
+                    state.locationError!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 14,
+                      color: AppColors.error,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<MapBloc>().add(const MapInitialized());
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tentar novamente'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
                       ),
                     ),
-                    if (_locationError != null)
-                      IconButton(
-                        icon: const Icon(Icons.refresh, color: AppColors.white, size: 20),
-                        onPressed: _loadCurrentLocation,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Header com barra de busca
+  Widget _buildHeader(BuildContext context, MapState state) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _showSearchSheet(context),
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.darkGrey.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.mediumGrey),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.lightGrey,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Buscar eventos, crews, lugares...',
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 14,
+                                color: AppColors.lightGrey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                MapControlButton(
+                  icon: Icons.tune_rounded,
+                  onTap: () => _showFilters(context),
+                ),
+              ],
             ),
+          ),
+
         ],
       ),
     );
   }
 
-  void _showFilters() {
+  /// Botões de controle do mapa (zoom, localização)
+  Widget _buildMapControls(BuildContext context, MapState state) {
+    return Positioned(
+      right: 16,
+      bottom: state.isNavigating ? 200 : 100,
+      child: Column(
+        children: [
+          MapControlButton(
+            icon: Icons.add,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: true));
+              _zoomMap(true, state);
+            },
+          ),
+          const SizedBox(height: 8),
+          MapControlButton(
+            icon: Icons.remove,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: false));
+              _zoomMap(false, state);
+            },
+          ),
+          const SizedBox(height: 16),
+          MapControlButton(
+            icon: state.isFollowingUser
+                ? Icons.my_location
+                : Icons.location_searching,
+            isAccent: state.isFollowingUser,
+            isLoading: state.isLoadingLocation,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraCenteredOnUser());
+              _centerOnUser(state);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Indicador de erro
+  Widget _buildErrorIndicator(BuildContext context, MapState state) {
+    return Positioned(
+      top: 100,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                state.locationError ?? 'Erro desconhecido',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  color: AppColors.white,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.white, size: 20),
+              onPressed: () {
+                context.read<MapBloc>().add(const MapInitialized());
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Aplica zoom no mapa
+  /// Usa easeTo em vez de flyTo - mais leve para interações do usuário
+  void _zoomMap(bool zoomIn, MapState state) {
+    if (_mapboxMap == null) return;
+
+    final currentZoom = state.currentZoom;
+    final newZoom = zoomIn
+        ? (currentZoom + 1).clamp(5.0, 20.0)
+        : (currentZoom - 1).clamp(5.0, 20.0);
+
+    _mapboxMap!.easeTo(
+      CameraOptions(zoom: newZoom),
+      MapAnimationOptions(duration: 250),
+    );
+  }
+
+  /// Centraliza no usuário
+  /// Usa easeTo em vez de flyTo - mais leve e suave
+  void _centerOnUser(MapState state) {
+    if (_mapboxMap == null || state.userPosition == null) return;
+
+    final position = state.userPosition!;
+    _mapboxMap!.easeTo(
+      CameraOptions(
+        center: Point(
+          coordinates: Position(position.longitude, position.latitude),
+        ),
+        zoom: state.appropriateZoom,
+        bearing: state.mode == MapMode.drive ? state.userHeading : 0,
+        pitch: state.appropriateTilt,
+      ),
+      MapAnimationOptions(duration: 350),
+    );
+  }
+
+  /// Exibe sheet de busca
+  void _showSearchSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkGrey,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => _SearchSheet(
+          scrollController: controller,
+          onDestinationSelected: (destination) {
+            Navigator.pop(sheetContext);
+            context.read<MapBloc>().add(
+                  DestinationSelected(destination: destination),
+                );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Exibe filtros
+  void _showFilters(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.darkGrey,
@@ -489,12 +485,25 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Filtros em desenvolvimento...',
-              style: GoogleFonts.rajdhani(
-                fontSize: 16,
-                color: AppColors.lightGrey,
-              ),
+            _FilterOption(
+              icon: Icons.event_rounded,
+              label: 'Eventos',
+              isSelected: true,
+            ),
+            _FilterOption(
+              icon: Icons.groups_rounded,
+              label: 'Crews',
+              isSelected: true,
+            ),
+            _FilterOption(
+              icon: Icons.local_gas_station_rounded,
+              label: 'Postos',
+              isSelected: false,
+            ),
+            _FilterOption(
+              icon: Icons.car_repair_rounded,
+              label: 'Oficinas',
+              isSelected: false,
             ),
             const SizedBox(height: 24),
           ],
@@ -502,130 +511,332 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       ),
     );
   }
-
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// WIDGETS AUXILIARES
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _MapButton extends StatelessWidget {
-
-  const _MapButton({
-    required this.icon,
-    required this.onTap,
-    this.isAccent = false,
+/// Sheet de busca de destinos
+class _SearchSheet extends StatefulWidget {
+  const _SearchSheet({
+    required this.scrollController,
+    required this.onDestinationSelected,
   });
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isAccent;
+
+  final ScrollController scrollController;
+  final void Function(nav_entities.NavigationDestination) onDestinationSelected;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: isAccent ? AppColors.accent : AppColors.darkGrey.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isAccent ? AppColors.accent : AppColors.mediumGrey,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: AppColors.white,
-          size: 22,
-        ),
-      ),
-    );
-  }
+  State<_SearchSheet> createState() => _SearchSheetState();
 }
 
-/// Widget de seta direcional para o marcador do usuário
-/// Aponta na direção do movimento com efeito glow
-class _DirectionArrowMarker extends StatelessWidget {
+class _SearchSheetState extends State<_SearchSheet> {
+  final _searchController = TextEditingController();
+  List<_SearchResult> _results = [];
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Carrega sugestões iniciais (POIs mockados)
+    _loadInitialSuggestions();
+  }
+
+  void _loadInitialSuggestions() {
+    setState(() {
+      _results = [
+        _SearchResult(
+          name: 'Encontro de Carros Antigos',
+          address: 'Praça da Sé, Centro - São Paulo',
+          type: 'Evento',
+          icon: Icons.event_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5505, longitude: -46.6333),
+        ),
+        _SearchResult(
+          name: 'Crew SP Tuning',
+          address: 'Av. Paulista, 1000 - São Paulo',
+          type: 'Crew',
+          icon: Icons.groups_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5614, longitude: -46.6558),
+        ),
+        _SearchResult(
+          name: 'Auto Center Premium',
+          address: 'R. Augusta, 500 - São Paulo',
+          type: 'Oficina',
+          icon: Icons.car_repair_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5534, longitude: -46.6608),
+        ),
+        _SearchResult(
+          name: 'Posto Shell Premium',
+          address: 'Av. Brasil, 2500 - São Paulo',
+          type: 'Posto',
+          icon: Icons.local_gas_station_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5456, longitude: -46.6388),
+        ),
+      ];
+    });
+  }
+
+  void _search(String query) async {
+    if (query.isEmpty) {
+      _loadInitialSuggestions();
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    // Simula busca (em produção, usar Mapbox Geocoding API)
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    setState(() {
+      _isSearching = false;
+      // Filtra resultados pelo query
+      _results = _results
+          .where((r) =>
+              r.name.toLowerCase().contains(query.toLowerCase()) ||
+              r.address.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.accent.withOpacity(0.6),
-            blurRadius: 20,
-            spreadRadius: 4,
+    return Column(
+      children: [
+        // Handle
+        Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.mediumGrey,
+            borderRadius: BorderRadius.circular(2),
           ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Glow effect
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppColors.accent.withOpacity(0.3),
-                  AppColors.accent.withOpacity(0.0),
-                ],
+        ),
+
+        // Campo de busca
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            onChanged: _search,
+            style: GoogleFonts.rajdhani(
+              color: AppColors.white,
+              fontSize: 16,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Para onde?',
+              hintStyle: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontSize: 16,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.lightGrey,
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: AppColors.lightGrey),
+                      onPressed: () {
+                        _searchController.clear();
+                        _loadInitialSuggestions();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: AppColors.black,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.mediumGrey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.mediumGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.accent),
               ),
             ),
           ),
-          // Seta direcional
-          CustomPaint(
-            size: const Size(40, 40),
-            painter: _ArrowPainter(),
+        ),
+
+        // Resultados
+        Expanded(
+          child: _isSearching
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                  ),
+                )
+              : ListView.builder(
+                  controller: widget.scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) {
+                    final result = _results[index];
+                    return _SearchResultTile(
+                      result: result,
+                      onTap: () {
+                        widget.onDestinationSelected(
+                          nav_entities.NavigationDestination(
+                            point: result.point,
+                            name: result.name,
+                            address: result.address,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+}
+
+/// Resultado de busca
+class _SearchResult {
+  const _SearchResult({
+    required this.name,
+    required this.address,
+    required this.type,
+    required this.icon,
+    required this.point,
+  });
+
+  final String name;
+  final String address;
+  final String type;
+  final IconData icon;
+  final nav_entities.MapPoint point;
+}
+
+/// Tile de resultado de busca
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.result,
+    required this.onTap,
+  });
+
+  final _SearchResult result;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppColors.accent.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          result.icon,
+          color: AppColors.accent,
+          size: 24,
+        ),
+      ),
+      title: Text(
+        result.name,
+        style: GoogleFonts.rajdhani(
+          color: AppColors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            result.address,
+            style: GoogleFonts.rajdhani(
+              color: AppColors.lightGrey,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.mediumGrey,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              result.type,
+              style: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
+      ),
+      trailing: const Icon(
+        Icons.navigation_rounded,
+        color: AppColors.accent,
+        size: 20,
       ),
     );
   }
 }
 
-/// CustomPainter para desenhar a seta direcional
-class _ArrowPainter extends CustomPainter {
+/// Opção de filtro
+class _FilterOption extends StatelessWidget {
+  const _FilterOption({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accent
-      ..style = PaintingStyle.fill;
-
-    final path = ui.Path();
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final arrowSize = 16.0;
-
-    // Desenha a seta apontando para cima (será rotacionada pelo Transform.rotate)
-    path.moveTo(centerX, centerY - arrowSize / 2);
-    path.lineTo(centerX - arrowSize / 2, centerY + arrowSize / 2);
-    path.lineTo(centerX, centerY + arrowSize / 3);
-    path.lineTo(centerX + arrowSize / 2, centerY + arrowSize / 2);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // Adiciona um círculo central para melhor visualização
-    final circlePaint = Paint()
-      ..color = AppColors.accent
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(centerX, centerY), 4, circlePaint);
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.accent.withOpacity(0.2)
+              : AppColors.mediumGrey,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? AppColors.accent : AppColors.lightGrey,
+          size: 20,
+        ),
+      ),
+      title: Text(
+        label,
+        style: GoogleFonts.rajdhani(
+          color: isSelected ? AppColors.white : AppColors.lightGrey,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: Switch(
+        value: isSelected,
+        onChanged: (_) {
+          // TODO: Implementar toggle de filtro
+        },
+        activeColor: AppColors.accent,
+        activeTrackColor: AppColors.accent.withOpacity(0.3),
+        inactiveThumbColor: AppColors.lightGrey,
+        inactiveTrackColor: AppColors.mediumGrey,
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

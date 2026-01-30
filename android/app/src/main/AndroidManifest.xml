@@ -3,6 +3,12 @@
         android:label="gearhead_br"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Mapbox Access Token -->
+        <meta-data
+            android:name="MAPBOX_ACCESS_TOKEN"
+            android:value="pk.eyJ1IjoibHVjYXNsaXNib2EiLCJhIjoiY2xraDFmdWJ4MDF1cDNlbnk5Z25oN3FjNyJ9.XfaFVX1TIK2FVEZu26Urmw" />
+            
         <activity
             android:name=".MainActivity"
             android:exported="true"
