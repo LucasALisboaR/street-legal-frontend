@@ -22,3 +22,5 @@ class ForgotPasswordSubmitted extends ForgotPasswordEvent {
   const ForgotPasswordSubmitted();
 }
 
+
+
