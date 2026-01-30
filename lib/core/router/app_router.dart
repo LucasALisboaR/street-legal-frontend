@@ -7,6 +7,7 @@ import 'package:gearhead_br/features/events/presentation/pages/events_page.dart'
 import 'package:gearhead_br/features/map/presentation/pages/map_page.dart';
 import 'package:gearhead_br/features/moments/presentation/pages/moments_page.dart';
 import 'package:gearhead_br/features/profile/presentation/pages/profile_page.dart';
+import 'package:gearhead_br/features/profile/presentation/pages/garage_management_page.dart';
 import 'package:go_router/go_router.dart';
 
 /// Configuração de rotas do GEARHEAD BR
@@ -29,6 +30,7 @@ class AppRouter {
   static const String events = '/events';
   static const String moments = '/moments';
   static const String profile = '/profile';
+  static const String garageManagement = '/garage-management';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ROUTER CONFIGURATION
@@ -118,6 +120,15 @@ class AppRouter {
           child: const ProfilePage(),
         ),
       ),
+      GoRoute(
+        path: garageManagement,
+        name: 'garageManagement',
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const GarageManagementPage(),
+        ),
+      ),
     ],
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -162,12 +173,12 @@ class AppRouter {
   // ═══════════════════════════════════════════════════════════════════════════
   
   /// Transição customizada com fade
-  static CustomTransitionPage _buildPageWithTransition({
+  static CustomTransitionPage<void> _buildPageWithTransition({
     required BuildContext context,
     required GoRouterState state,
     required Widget child,
   }) {
-    return CustomTransitionPage(
+    return CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {

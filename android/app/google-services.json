@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "863805534310",
+    "project_id": "street-legal-64574",
+    "storage_bucket": "street-legal-64574.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863805534310:android:25655da5287420634fbda7",
+        "android_client_info": {
+          "package_name": "street.legal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPm80IyyLlcEvEhXj0rZLtPJFd6S4QG7w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

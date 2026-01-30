@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
@@ -27,8 +28,14 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
   late TextEditingController _nicknameController;
   late TextEditingController _colorController;
   late TextEditingController _plateController;
+  String? _selectedImageUrl;
 
   bool get isEditing => widget.vehicle != null;
+  
+  String? get _currentImageUrl => _selectedImageUrl ?? 
+      (widget.vehicle?.photoUrls.isNotEmpty == true 
+          ? widget.vehicle!.photoUrls.first 
+          : null);
 
   @override
   void initState() {
@@ -45,6 +52,9 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
     _plateController = TextEditingController(
       text: widget.vehicle?.licensePlate ?? '',
     );
+    _selectedImageUrl = widget.vehicle?.photoUrls.isNotEmpty == true
+        ? widget.vehicle!.photoUrls.first
+        : null;
   }
 
   @override
@@ -116,6 +126,131 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                   style: GoogleFonts.rajdhani(
                     fontSize: 14,
                     color: AppColors.lightGrey,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Seção de Imagem
+                Text(
+                  'Foto do Veículo',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: AppColors.black,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.mediumGrey,
+                        width: 1,
+                      ),
+                    ),
+                    child: _currentImageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(11),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CachedNetworkImage(
+                                  imageUrl: _currentImageUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: AppColors.mediumGrey,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.accent,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: AppColors.mediumGrey,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.directions_car_rounded,
+                                        color: AppColors.lightGrey,
+                                        size: 48,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.black.withOpacity(0.5),
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: AppColors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'ALTERAR FOTO',
+                                            style: GoogleFonts.orbitron(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.white,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.add_photo_alternate_rounded,
+                                  color: AppColors.lightGrey,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Adicionar foto',
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 14,
+                                    color: AppColors.lightGrey,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Toque para selecionar',
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 12,
+                                    color: AppColors.mediumGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                   ),
                 ),
 
@@ -274,6 +409,8 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
       licensePlate: _plateController.text.trim().isNotEmpty
           ? _plateController.text.trim()
           : null,
+      photoUrls: _selectedImageUrl != null ? [_selectedImageUrl!] : 
+          (widget.vehicle?.photoUrls ?? []),
       createdAt: widget.vehicle?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -296,6 +433,135 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+      ),
+    );
+  }
+
+  void _pickImage() {
+    // TODO: Implementar seleção de imagem com image_picker
+    // Por enquanto, mostra um dialog informando que será implementado
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGrey,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Selecionar Foto',
+          style: GoogleFonts.orbitron(
+            color: AppColors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Funcionalidade de upload de foto será implementada em breve. Por enquanto, você pode usar uma URL de imagem.',
+          style: GoogleFonts.rajdhani(
+            color: AppColors.lightGrey,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: GoogleFonts.rajdhani(
+                color: AppColors.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showImageUrlDialog();
+            },
+            child: Text(
+              'Usar URL',
+              style: GoogleFonts.rajdhani(
+                color: AppColors.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImageUrlDialog() {
+    final controller = TextEditingController(text: _currentImageUrl ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGrey,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'URL da Imagem',
+          style: GoogleFonts.orbitron(
+            color: AppColors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          style: GoogleFonts.rajdhani(
+            color: AppColors.white,
+            fontSize: 14,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Cole a URL da imagem aqui',
+            hintStyle: GoogleFonts.rajdhani(
+              color: AppColors.lightGrey,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: AppColors.mediumGrey,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: AppColors.accent,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedImageUrl = controller.text.trim().isNotEmpty
+                    ? controller.text.trim()
+                    : null;
+              });
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Salvar',
+              style: GoogleFonts.rajdhani(
+                color: AppColors.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
