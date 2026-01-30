@@ -15,10 +15,13 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Inicializar Firebase (apenas se ainda não foi inicializado)
+  // Isso evita erro durante hot reload ou se o Android inicializar automaticamente
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   
   // Configurar orientação da tela (portrait apenas)
   await SystemChrome.setPreferredOrientations([

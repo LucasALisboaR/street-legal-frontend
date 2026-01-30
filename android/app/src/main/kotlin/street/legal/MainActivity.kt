@@ -1,5 +1,6 @@
-package com.example.gearhead_br
+package street.legal
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+
