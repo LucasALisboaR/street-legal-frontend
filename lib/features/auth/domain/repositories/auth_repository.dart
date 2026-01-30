@@ -2,11 +2,12 @@ import 'package:dartz/dartz.dart';
 import 'package:gearhead_br/features/auth/domain/entities/user_entity.dart';
 
 /// Tipos de autenticação social disponíveis
-enum SocialAuthType {
-  google,
-  apple,
-  facebook,
-}
+/// TODO: Reativar quando login social for implementado
+// enum SocialAuthType {
+//   google,
+//   apple,
+//   facebook,
+// }
 
 /// Falhas de autenticação
 abstract class AuthFailure {
@@ -52,9 +53,10 @@ abstract class AuthRepository {
   });
 
   /// Login com provedor social
-  Future<Either<AuthFailure, UserEntity>> loginWithSocial({
-    required SocialAuthType type,
-  });
+  /// TODO: Reativar quando login social for implementado
+  // Future<Either<AuthFailure, UserEntity>> loginWithSocial({
+  //   required SocialAuthType type,
+  // });
 
   /// Registro de novo usuário
   Future<Either<AuthFailure, UserEntity>> register({

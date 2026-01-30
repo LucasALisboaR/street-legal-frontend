@@ -38,18 +38,3 @@ class LoginSubmitted extends LoginEvent {
   const LoginSubmitted();
 }
 
-/// Login com Google
-class LoginWithGooglePressed extends LoginEvent {
-  const LoginWithGooglePressed();
-}
-
-/// Login com Apple
-class LoginWithApplePressed extends LoginEvent {
-  const LoginWithApplePressed();
-}
-
-/// Login com Facebook
-class LoginWithFacebookPressed extends LoginEvent {
-  const LoginWithFacebookPressed();
-}
-

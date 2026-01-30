@@ -7,7 +7,6 @@ import 'package:gearhead_br/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/animated_logo.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
-import 'package:gearhead_br/features/auth/presentation/widgets/social_login_button.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -164,20 +163,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       // ═══════════════════════════════════════════════════════
                       _buildLoginForm(),
                       
-                      const SizedBox(height: 32),
-                      
-                      // ═══════════════════════════════════════════════════════
-                      // DIVISOR
-                      // ═══════════════════════════════════════════════════════
-                      _buildDivider(),
-                      
-                      const SizedBox(height: 32),
-                      
-                      // ═══════════════════════════════════════════════════════
-                      // BOTÕES SOCIAIS
-                      // ═══════════════════════════════════════════════════════
-                      _buildSocialButtons(),
-                      
                       const SizedBox(height: 40),
                       
                       // ═══════════════════════════════════════════════════════
@@ -276,80 +261,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 isEnabled: state.canSubmit,
                 onPressed: () => bloc.add(const LoginSubmitted()),
               ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  AppColors.mediumGrey.withOpacity(0.5),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'ou continue com',
-            style: GoogleFonts.rajdhani(
-              color: AppColors.lightGrey,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.mediumGrey.withOpacity(0.5),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return BlocBuilder<LoginBloc, LoginState>(
-      builder: (context, state) {
-        final bloc = context.read<LoginBloc>();
-        final isLoading = state.status == LoginStatus.loading;
-
-        return Column(
-          children: [
-            SocialLoginButton(
-              type: SocialButtonType.google,
-              isLoading: isLoading,
-              onPressed: () => bloc.add(const LoginWithGooglePressed()),
-            ),
-            const SizedBox(height: 12),
-            SocialLoginButton(
-              type: SocialButtonType.apple,
-              isLoading: isLoading,
-              onPressed: () => bloc.add(const LoginWithApplePressed()),
-            ),
-            const SizedBox(height: 12),
-            SocialLoginButton(
-              type: SocialButtonType.facebook,
-              isLoading: isLoading,
-              onPressed: () => bloc.add(const LoginWithFacebookPressed()),
             ),
           ],
         );
