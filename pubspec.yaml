@@ -28,9 +28,8 @@ dependencies:
   flutter_svg: ^2.0.9
   google_fonts: ^6.1.0
 
-  # Maps & Location
-  flutter_map: ^6.1.0
-  latlong2: ^0.9.1
+  # Maps & Location (Mapbox)
+  mapbox_maps_flutter: ^2.1.0
   geolocator: ^11.0.0
   permission_handler: ^11.1.0
 

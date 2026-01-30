@@ -1,12 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
+import 'package:gearhead_br/core/di/injection.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_event.dart';
+import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
+import 'package:gearhead_br/features/map/presentation/widgets/mapbox_map_widget.dart';
+import 'package:gearhead_br/features/map/presentation/widgets/navigation_panel.dart';
+import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart'
+    as nav_entities;
 
 /// Página do Mapa - Tela principal do app
 /// Exibe localização, eventos e usuários próximos
+/// Suporta dois modos: Normal (tracking) e Drive (navegação)
+/// 
+/// OTIMIZAÇÃO: Usa MapBloc como singleton para manter estado entre navegações.
+/// Isso evita recarregar o mapa toda vez que o usuário volta para esta tela.
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -14,281 +27,444 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
-  late MapController _mapController;
-  late AnimationController _fabAnimationController;
-
-  // Mock: localização atual (São Paulo)
-  final LatLng _currentLocation = const LatLng(-23.550520, -46.633308);
-
-  // Mock: eventos próximos
-  final List<_MapEvent> _events = [
-    const _MapEvent(
-      id: '1',
-      name: 'Encontro Noturno SP',
-      location: LatLng(-23.561414, -46.656078),
-      participants: 45,
-      type: EventType.meetup,
-      isLive: true,
-    ),
-    const _MapEvent(
-      id: '2',
-      name: 'Cars & Coffee',
-      location: LatLng(-23.587416, -46.657333),
-      participants: 128,
-      type: EventType.carshow,
-      isLive: false,
-    ),
-    const _MapEvent(
-      id: '3',
-      name: 'Track Day Interlagos',
-      location: LatLng(-23.701389, -46.696944),
-      participants: 67,
-      type: EventType.race,
-      isLive: false,
-    ),
-  ];
-
-  // Mock: usuários próximos
-  final List<_MapUser> _nearbyUsers = [
-    const _MapUser(
-      id: '1',
-      name: 'Carlos_Turbo',
-      vehicle: 'Civic Si',
-      location: LatLng(-23.553520, -46.640308),
-    ),
-    const _MapUser(
-      id: '2',
-      name: 'Opala_do_Zé',
-      vehicle: 'Opala 1988',
-      location: LatLng(-23.545520, -46.628308),
-    ),
-    const _MapUser(
-      id: '3',
-      name: 'V8_Maniaco',
-      vehicle: 'Mustang GT',
-      location: LatLng(-23.558520, -46.650308),
-    ),
-  ];
-
-  bool _showEvents = true;
-  bool _showUsers = true;
+class _MapPageState extends State<MapPage> {
+  late final MapBloc _mapBloc;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _mapController = MapController();
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
+    _mapBloc = getIt<MapBloc>();
+    
+    // Inicializa apenas uma vez se ainda não tiver posição
+    if (_mapBloc.state.userPosition == null && !_initialized) {
+      _initialized = true;
+      _mapBloc.add(const MapInitialized());
+    }
   }
 
   @override
-  void dispose() {
-    _mapController.dispose();
-    _fabAnimationController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _mapBloc,
+      child: const _MapPageContent(),
+    );
   }
+}
+
+class _MapPageContent extends StatefulWidget {
+  const _MapPageContent();
+
+  @override
+  State<_MapPageContent> createState() => _MapPageContentState();
+}
+
+class _MapPageContentState extends State<_MapPageContent> {
+  MapboxMap? _mapboxMap;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.black,
-      body: Stack(
-        children: [
-          // Mapa
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentLocation,
-              minZoom: 5,
-              maxZoom: 18,
-              backgroundColor: AppColors.black,
-            ),
+      body: BlocConsumer<MapBloc, MapState>(
+        listenWhen: (previous, current) =>
+            previous.locationError != current.locationError &&
+            current.locationError != null,
+        listener: (context, state) {
+          // Mostra snackbar em caso de erro
+          if (state.locationError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.locationError!),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          // ═══════════════════════════════════════════════════════════════════
+          // LOADING FULLSCREEN: Mostra loading até ter localização do usuário
+          // Isso evita mostrar o mapa em posição errada e depois "pular"
+          // ═══════════════════════════════════════════════════════════════════
+          if (state.userPosition == null) {
+            return _buildFullScreenLoading(context, state);
+          }
+
+          return Stack(
             children: [
-              // Tile Layer (OpenStreetMap com estilo dark)
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.gearheadbr.app',
-                retinaMode: true,
+              // Mapa Mapbox - só exibe quando tem localização
+              MapboxMapWidget(
+                mapState: state,
+                onMapCreated: (mapboxMap) {
+                  _mapboxMap = mapboxMap;
+                },
               ),
 
-              // Marcadores
-              MarkerLayer(
-                markers: [
-                  // Localização atual
-                  Marker(
-                    point: _currentLocation,
-                    width: 50,
-                    height: 50,
-                    child: _CurrentLocationMarker(),
+              // Painel de navegação (visível apenas no modo Drive)
+              if (state.isNavigating)
+                NavigationPanel(
+                  mapState: state,
+                  onStopNavigation: () {
+                    context.read<MapBloc>().add(const NavigationStopped());
+                  },
+                ),
+
+              // Header overlay (search bar) - oculto durante navegação
+              if (!state.isNavigating) _buildHeader(context, state),
+
+              // Botões de controle do mapa
+              _buildMapControls(context, state),
+
+              // Botão de iniciar navegação (quando há destino selecionado)
+              if (state.hasDestination && !state.isNavigating)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: StartNavigationButton(
+                    destination: state.selectedDestination!,
+                    isCalculating: state.isCalculatingRoute,
+                    onStartNavigation: () {
+                      context.read<MapBloc>().add(
+                            NavigationStarted(
+                              destination: state.selectedDestination!,
+                            ),
+                          );
+                    },
                   ),
+                ),
 
-                  // Eventos
-                  if (_showEvents)
-                    ..._events.map((event) => Marker(
-                          point: event.location,
-                          width: 60,
-                          height: 60,
-                          child: GestureDetector(
-                            onTap: () => _showEventDetails(event),
-                            child: _EventMarker(event: event),
-                          ),
-                        ),),
+              // Bottom Navigation
+              if (!state.isNavigating)
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: BottomNavBar(currentItem: NavItem.map),
+                ),
 
-                  // Usuários
-                  if (_showUsers)
-                    ..._nearbyUsers.map((user) => Marker(
-                          point: user.location,
-                          width: 44,
-                          height: 44,
-                          child: GestureDetector(
-                            onTap: () => _showUserDetails(user),
-                            child: _UserMarker(user: user),
-                          ),
-                        ),),
+              // Indicador de erro de localização (dentro do mapa)
+              if (state.locationError != null && !state.isNavigating)
+                _buildErrorIndicator(context, state),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Loading fullscreen enquanto obtém localização
+  Widget _buildFullScreenLoading(BuildContext context, MapState state) {
+    return Container(
+      color: AppColors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Ícone animado
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.8, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.accent,
+                      size: 40,
+                    ),
+                  ),
+                );
+              },
+              onEnd: () {
+                // Repetir animação
+                if (mounted) setState(() {});
+              },
+            ),
+            const SizedBox(height: 24),
+            
+            // Texto de status
+            Text(
+              state.isLoadingLocation
+                  ? 'Obtendo sua localização...'
+                  : state.locationError != null
+                      ? 'Erro ao obter localização'
+                      : 'Iniciando mapa...',
+              style: GoogleFonts.rajdhani(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // Subtexto
+            Text(
+              'Aguarde um momento',
+              style: GoogleFonts.rajdhani(
+                fontSize: 14,
+                color: AppColors.lightGrey,
+              ),
+            ),
+            const SizedBox(height: 32),
+            
+            // Indicador de progresso ou botão de retry
+            if (state.isLoadingLocation)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                ),
+              )
+            else if (state.locationError != null)
+              Column(
+                children: [
+                  Text(
+                    state.locationError!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 14,
+                      color: AppColors.error,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<MapBloc>().add(const MapInitialized());
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tentar novamente'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Header overlay
-          SafeArea(
-            child: Column(
+  /// Header com barra de busca
+  Widget _buildHeader(BuildContext context, MapState state) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.darkGrey.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.mediumGrey,
-                            ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _showSearchSheet(context),
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.darkGrey.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.mediumGrey),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.lightGrey,
                           ),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 16),
-                              const Icon(
-                                Icons.search_rounded,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Buscar eventos, crews, lugares...',
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 14,
                                 color: AppColors.lightGrey,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Buscar eventos, crews, lugares...',
-                                  style: GoogleFonts.rajdhani(
-                                    fontSize: 14,
-                                    color: AppColors.lightGrey,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      _MapButton(
-                        icon: Icons.tune_rounded,
-                        onTap: _showFilters,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-
-                // Filter chips
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      _FilterChip(
-                        icon: Icons.event,
-                        label: 'Eventos',
-                        isActive: _showEvents,
-                        onTap: () => setState(() => _showEvents = !_showEvents),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        icon: Icons.people,
-                        label: 'Pilotos',
-                        isActive: _showUsers,
-                        onTap: () => setState(() => _showUsers = !_showUsers),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        icon: Icons.local_gas_station,
-                        label: 'Postos',
-                        isActive: false,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        icon: Icons.build,
-                        label: 'Oficinas',
-                        isActive: false,
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
+                const SizedBox(width: 12),
+                MapControlButton(
+                  icon: Icons.tune_rounded,
+                  onTap: () => _showFilters(context),
                 ),
               ],
             ),
           ),
 
-          // Botões do mapa (zoom, localização)
-          Positioned(
-            right: 16,
-            bottom: 100,
-            child: Column(
-              children: [
-                _MapButton(
-                  icon: Icons.add,
-                  onTap: () => _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom + 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _MapButton(
-                  icon: Icons.remove,
-                  onTap: () => _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom - 1,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _MapButton(
-                  icon: Icons.my_location,
-                  isAccent: true,
-                  onTap: () => _mapController.move(_currentLocation, 15),
-                ),
-              ],
-            ),
-          ),
+        ],
+      ),
+    );
+  }
 
-          // Bottom Navigation
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavBar(currentItem: NavItem.map),
+  /// Botões de controle do mapa (zoom, localização)
+  Widget _buildMapControls(BuildContext context, MapState state) {
+    return Positioned(
+      right: 16,
+      bottom: state.isNavigating ? 200 : 100,
+      child: Column(
+        children: [
+          MapControlButton(
+            icon: Icons.add,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: true));
+              _zoomMap(true, state);
+            },
+          ),
+          const SizedBox(height: 8),
+          MapControlButton(
+            icon: Icons.remove,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: false));
+              _zoomMap(false, state);
+            },
+          ),
+          const SizedBox(height: 16),
+          MapControlButton(
+            icon: state.isFollowingUser
+                ? Icons.my_location
+                : Icons.location_searching,
+            isAccent: state.isFollowingUser,
+            isLoading: state.isLoadingLocation,
+            onTap: () {
+              context.read<MapBloc>().add(const CameraCenteredOnUser());
+              _centerOnUser(state);
+            },
           ),
         ],
       ),
     );
   }
 
-  void _showFilters() {
-    showModalBottomSheet(
+  /// Indicador de erro
+  Widget _buildErrorIndicator(BuildContext context, MapState state) {
+    return Positioned(
+      top: 100,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                state.locationError ?? 'Erro desconhecido',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  color: AppColors.white,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.white, size: 20),
+              onPressed: () {
+                context.read<MapBloc>().add(const MapInitialized());
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Aplica zoom no mapa
+  /// Usa easeTo em vez de flyTo - mais leve para interações do usuário
+  void _zoomMap(bool zoomIn, MapState state) {
+    if (_mapboxMap == null) return;
+
+    final currentZoom = state.currentZoom;
+    final newZoom = zoomIn
+        ? (currentZoom + 1).clamp(5.0, 20.0)
+        : (currentZoom - 1).clamp(5.0, 20.0);
+
+    _mapboxMap!.easeTo(
+      CameraOptions(zoom: newZoom),
+      MapAnimationOptions(duration: 250),
+    );
+  }
+
+  /// Centraliza no usuário
+  /// Usa easeTo em vez de flyTo - mais leve e suave
+  void _centerOnUser(MapState state) {
+    if (_mapboxMap == null || state.userPosition == null) return;
+
+    final position = state.userPosition!;
+    _mapboxMap!.easeTo(
+      CameraOptions(
+        center: Point(
+          coordinates: Position(position.longitude, position.latitude),
+        ),
+        zoom: state.appropriateZoom,
+        bearing: state.mode == MapMode.drive ? state.userHeading : 0,
+        pitch: state.appropriateTilt,
+      ),
+      MapAnimationOptions(duration: 350),
+    );
+  }
+
+  /// Exibe sheet de busca
+  void _showSearchSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkGrey,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => _SearchSheet(
+          scrollController: controller,
+          onDestinationSelected: (destination) {
+            Navigator.pop(sheetContext);
+            context.read<MapBloc>().add(
+                  DestinationSelected(destination: destination),
+                );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Exibe filtros
+  void _showFilters(BuildContext context) {
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.darkGrey,
       shape: const RoundedRectangleBorder(
@@ -309,206 +485,27 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Filtros em desenvolvimento...',
-              style: GoogleFonts.rajdhani(
-                fontSize: 16,
-                color: AppColors.lightGrey,
-              ),
+            _FilterOption(
+              icon: Icons.event_rounded,
+              label: 'Eventos',
+              isSelected: true,
+            ),
+            _FilterOption(
+              icon: Icons.groups_rounded,
+              label: 'Crews',
+              isSelected: true,
+            ),
+            _FilterOption(
+              icon: Icons.local_gas_station_rounded,
+              label: 'Postos',
+              isSelected: false,
+            ),
+            _FilterOption(
+              icon: Icons.car_repair_rounded,
+              label: 'Oficinas',
+              isSelected: false,
             ),
             const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showEventDetails(_MapEvent event) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.darkGrey,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (event.isLive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.white,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'AO VIVO',
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Text(
-                  event.type.emoji,
-                  style: const TextStyle(fontSize: 20),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  event.type.label,
-                  style: GoogleFonts.rajdhani(
-                    fontSize: 14,
-                    color: AppColors.lightGrey,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              event.name,
-              style: GoogleFonts.orbitron(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.people, size: 18, color: AppColors.accent),
-                const SizedBox(width: 8),
-                Text(
-                  '${event.participants} participantes',
-                  style: GoogleFonts.rajdhani(
-                    fontSize: 16,
-                    color: AppColors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('VER DETALHES'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showUserDetails(_MapUser user) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.darkGrey,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [AppColors.accent, AppColors.accentDark],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      user.name[0].toUpperCase(),
-                      style: GoogleFonts.orbitron(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.name,
-                      style: GoogleFonts.orbitron(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.white,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.directions_car,
-                          size: 14,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          user.vehicle,
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 14,
-                            color: AppColors.lightGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.mediumGrey),
-                    ),
-                    child: const Text('Ver perfil'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Mensagem'),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -516,257 +513,330 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// WIDGETS AUXILIARES
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _MapButton extends StatelessWidget {
-
-  const _MapButton({
-    required this.icon,
-    required this.onTap,
-    this.isAccent = false,
+/// Sheet de busca de destinos
+class _SearchSheet extends StatefulWidget {
+  const _SearchSheet({
+    required this.scrollController,
+    required this.onDestinationSelected,
   });
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isAccent;
+
+  final ScrollController scrollController;
+  final void Function(nav_entities.NavigationDestination) onDestinationSelected;
+
+  @override
+  State<_SearchSheet> createState() => _SearchSheetState();
+}
+
+class _SearchSheetState extends State<_SearchSheet> {
+  final _searchController = TextEditingController();
+  List<_SearchResult> _results = [];
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Carrega sugestões iniciais (POIs mockados)
+    _loadInitialSuggestions();
+  }
+
+  void _loadInitialSuggestions() {
+    setState(() {
+      _results = [
+        _SearchResult(
+          name: 'Encontro de Carros Antigos',
+          address: 'Praça da Sé, Centro - São Paulo',
+          type: 'Evento',
+          icon: Icons.event_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5505, longitude: -46.6333),
+        ),
+        _SearchResult(
+          name: 'Crew SP Tuning',
+          address: 'Av. Paulista, 1000 - São Paulo',
+          type: 'Crew',
+          icon: Icons.groups_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5614, longitude: -46.6558),
+        ),
+        _SearchResult(
+          name: 'Auto Center Premium',
+          address: 'R. Augusta, 500 - São Paulo',
+          type: 'Oficina',
+          icon: Icons.car_repair_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5534, longitude: -46.6608),
+        ),
+        _SearchResult(
+          name: 'Posto Shell Premium',
+          address: 'Av. Brasil, 2500 - São Paulo',
+          type: 'Posto',
+          icon: Icons.local_gas_station_rounded,
+          point: const nav_entities.MapPoint(latitude: -23.5456, longitude: -46.6388),
+        ),
+      ];
+    });
+  }
+
+  void _search(String query) async {
+    if (query.isEmpty) {
+      _loadInitialSuggestions();
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    // Simula busca (em produção, usar Mapbox Geocoding API)
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    setState(() {
+      _isSearching = false;
+      // Filtra resultados pelo query
+      _results = _results
+          .where((r) =>
+              r.name.toLowerCase().contains(query.toLowerCase()) ||
+              r.address.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: isAccent ? AppColors.accent : AppColors.darkGrey.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isAccent ? AppColors.accent : AppColors.mediumGrey,
+    return Column(
+      children: [
+        // Handle
+        Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.mediumGrey,
+            borderRadius: BorderRadius.circular(2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+        ),
+
+        // Campo de busca
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            onChanged: _search,
+            style: GoogleFonts.rajdhani(
+              color: AppColors.white,
+              fontSize: 16,
             ),
-          ],
+            decoration: InputDecoration(
+              hintText: 'Para onde?',
+              hintStyle: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontSize: 16,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.lightGrey,
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: AppColors.lightGrey),
+                      onPressed: () {
+                        _searchController.clear();
+                        _loadInitialSuggestions();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: AppColors.black,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.mediumGrey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.mediumGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.accent),
+              ),
+            ),
+          ),
+        ),
+
+        // Resultados
+        Expanded(
+          child: _isSearching
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                  ),
+                )
+              : ListView.builder(
+                  controller: widget.scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) {
+                    final result = _results[index];
+                    return _SearchResultTile(
+                      result: result,
+                      onTap: () {
+                        widget.onDestinationSelected(
+                          nav_entities.NavigationDestination(
+                            point: result.point,
+                            name: result.name,
+                            address: result.address,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+}
+
+/// Resultado de busca
+class _SearchResult {
+  const _SearchResult({
+    required this.name,
+    required this.address,
+    required this.type,
+    required this.icon,
+    required this.point,
+  });
+
+  final String name;
+  final String address;
+  final String type;
+  final IconData icon;
+  final nav_entities.MapPoint point;
+}
+
+/// Tile de resultado de busca
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.result,
+    required this.onTap,
+  });
+
+  final _SearchResult result;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppColors.accent.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          result.icon,
+          color: AppColors.accent,
+          size: 24,
+        ),
+      ),
+      title: Text(
+        result.name,
+        style: GoogleFonts.rajdhani(
+          color: AppColors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            result.address,
+            style: GoogleFonts.rajdhani(
+              color: AppColors.lightGrey,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.mediumGrey,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              result.type,
+              style: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      trailing: const Icon(
+        Icons.navigation_rounded,
+        color: AppColors.accent,
+        size: 20,
+      ),
+    );
+  }
+}
+
+/// Opção de filtro
+class _FilterOption extends StatelessWidget {
+  const _FilterOption({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.accent.withOpacity(0.2)
+              : AppColors.mediumGrey,
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
-          color: AppColors.white,
-          size: 22,
+          color: isSelected ? AppColors.accent : AppColors.lightGrey,
+          size: 20,
         ),
+      ),
+      title: Text(
+        label,
+        style: GoogleFonts.rajdhani(
+          color: isSelected ? AppColors.white : AppColors.lightGrey,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: Switch(
+        value: isSelected,
+        onChanged: (_) {
+          // TODO: Implementar toggle de filtro
+        },
+        activeColor: AppColors.accent,
+        activeTrackColor: AppColors.accent.withOpacity(0.3),
+        inactiveThumbColor: AppColors.lightGrey,
+        inactiveTrackColor: AppColors.mediumGrey,
       ),
     );
   }
-}
-
-class _FilterChip extends StatelessWidget {
-
-  const _FilterChip({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppColors.accent.withOpacity(0.9)
-              : AppColors.darkGrey.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive ? AppColors.accent : AppColors.mediumGrey,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: AppColors.white),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.rajdhani(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CurrentLocationMarker extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.accent.withOpacity(0.2),
-      ),
-      child: Center(
-        child: Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.accent,
-            border: Border.all(color: AppColors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accent.withOpacity(0.5),
-                blurRadius: 10,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EventMarker extends StatelessWidget {
-
-  const _EventMarker({required this.event});
-  final _MapEvent event;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: event.isLive ? AppColors.accent : AppColors.darkGrey,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: event.isLive ? AppColors.accent : AppColors.mediumGrey,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: event.isLive
-                ? AppColors.accent.withOpacity(0.4)
-                : Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          event.type.emoji,
-          style: const TextStyle(fontSize: 24),
-        ),
-      ),
-    );
-  }
-}
-
-class _UserMarker extends StatelessWidget {
-
-  const _UserMarker({required this.user});
-  final _MapUser user;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [AppColors.accent, AppColors.accentDark],
-        ),
-        border: Border.all(color: AppColors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          user.name[0].toUpperCase(),
-          style: GoogleFonts.orbitron(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.white,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODELOS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _MapEvent {
-
-  const _MapEvent({
-    required this.id,
-    required this.name,
-    required this.location,
-    required this.participants,
-    required this.type,
-    required this.isLive,
-  });
-  final String id;
-  final String name;
-  final LatLng location;
-  final int participants;
-  final EventType type;
-  final bool isLive;
-}
-
-class _MapUser {
-
-  const _MapUser({
-    required this.id,
-    required this.name,
-    required this.vehicle,
-    required this.location,
-  });
-  final String id;
-  final String name;
-  final String vehicle;
-  final LatLng location;
-}
-
-enum EventType {
-  meetup,
-  carshow,
-  cruise,
-  race,
-  workshop,
-}
-
-extension EventTypeX on EventType {
-  String get emoji => switch (this) {
-        EventType.meetup => '🚗',
-        EventType.carshow => '🏆',
-        EventType.cruise => '🛣️',
-        EventType.race => '🏁',
-        EventType.workshop => '🔧',
-      };
-
-  String get label => switch (this) {
-        EventType.meetup => 'Encontro',
-        EventType.carshow => 'Exposição',
-        EventType.cruise => 'Rolê',
-        EventType.race => 'Track Day',
-        EventType.workshop => 'Workshop',
-      };
 }

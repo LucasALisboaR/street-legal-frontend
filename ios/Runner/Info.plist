@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Este aplicativo precisa da sua localização para mostrar eventos e usuários próximos no mapa.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Este aplicativo precisa da sua localização para mostrar eventos e usuários próximos no mapa.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Este aplicativo precisa da sua localização para mostrar eventos e usuários próximos no mapa.</string>
+	<key>MBXAccessToken</key>
+	<string>pk.eyJ1IjoibHVjYXNsaXNib2EiLCJhIjoiY2xraDFmdWJ4MDF1cDNlbnk5Z25oN3FjNyJ9.XfaFVX1TIK2FVEZu26Urmw</string>
 </dict>
 </plist>

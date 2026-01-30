@@ -1,21 +1,44 @@
 import 'package:dartz/dartz.dart';
 import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
 import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
+import 'package:gearhead_br/features/map/data/services/location_service.dart';
 
-/// Implementação mock do repositório do mapa
-/// TODO: Substituir por implementação real com geolocator
+/// Implementação do repositório do mapa com geolocator
 class MapRepositoryImpl implements MapRepository {
+  final LocationService _locationService;
+
+  MapRepositoryImpl(this._locationService);
+
   @override
   Future<Either<MapFailure, LocationEntity>> getCurrentLocation() async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // Mock: retorna localização de São Paulo
-    return Right(LocationEntity(
-      latitude: -23.550520,
-      longitude: -46.633308,
-      address: 'São Paulo, SP',
-      timestamp: DateTime.now(),
-    ),);
+    try {
+      // Verifica se o serviço de localização está habilitado
+      final isEnabled = await _locationService.isLocationServiceEnabled();
+      if (!isEnabled) {
+        return const Left(LocationServiceFailure());
+      }
+
+      // Verifica e solicita permissões
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (!hasPermission) {
+        return const Left(LocationPermissionFailure());
+      }
+
+      // Obtém a localização atual
+      final position = await _locationService.getCurrentPosition();
+      if (position == null) {
+        return const Left(LocationPermissionFailure());
+      }
+
+      return Right(LocationEntity(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        address: null, // Pode ser implementado com geocoding depois
+        timestamp: DateTime.now(),
+      ));
+    } catch (e) {
+      return Left(LocationServiceFailure());
+    }
   }
 
   @override
