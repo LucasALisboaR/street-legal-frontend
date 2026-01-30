@@ -10,6 +10,9 @@ import 'package:gearhead_br/features/auth/domain/usecases/register_usecase.dart'
 import 'package:gearhead_br/features/auth/presentation/bloc/forgot_password_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/register_bloc.dart';
+import 'package:gearhead_br/features/map/data/services/location_service.dart';
+import 'package:gearhead_br/features/map/data/repositories/map_repository_impl.dart';
+import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -40,11 +43,23 @@ Future<void> configureDependencies() async {
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // SERVICES
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  getIt.registerLazySingleton<LocationService>(
+    () => LocationService(),
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // REPOSITORIES
   // ═══════════════════════════════════════════════════════════════════════════
   
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(getIt<FirebaseAuth>()),
+  );
+
+  getIt.registerLazySingleton<MapRepository>(
+    () => MapRepositoryImpl(getIt<LocationService>()),
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
