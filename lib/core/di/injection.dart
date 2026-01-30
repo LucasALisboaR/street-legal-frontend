@@ -1,5 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gearhead_br/core/network/api_client.dart';
+import 'package:gearhead_br/core/network/interceptors/auth_interceptor.dart';
 import 'package:gearhead_br/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:gearhead_br/features/auth/domain/repositories/auth_repository.dart';
 import 'package:gearhead_br/features/auth/domain/usecases/forgot_password_usecase.dart';
@@ -18,6 +20,23 @@ Future<void> configureDependencies() async {
   
   getIt.registerLazySingleton<FirebaseAuth>(
     () => FirebaseAuth.instance,
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NETWORK
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Registrar AuthInterceptor
+  getIt.registerLazySingleton<AuthInterceptor>(
+    () => AuthInterceptor(getIt<FirebaseAuth>()),
+  );
+
+  // Registrar ApiClient
+  getIt.registerLazySingleton<ApiClient>(
+    () => ApiClient(
+      authInterceptor: getIt<AuthInterceptor>(),
+      enableLogging: true, // Desabilitar em produção se necessário
+    ),
   );
 
   // ═══════════════════════════════════════════════════════════════════════════

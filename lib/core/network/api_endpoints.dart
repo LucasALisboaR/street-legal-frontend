@@ -1,75 +1,76 @@
-/// Constantes globais do GEARHEAD BR
-abstract class AppConstants {
-  // ═══════════════════════════════════════════════════════════════════════════
-  // APP INFO
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  static const String appName = 'GEARHEAD BR';
-  static const String appVersion = '1.0.0';
-  static const String appTagline = 'A comunidade que acelera junto';
+/// Endpoints da API
+/// 
+/// Centraliza todas as URLs dos endpoints da aplicação
+class ApiEndpoints {
+  ApiEndpoints._();
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // VALIDATION
+  // AUTH
   // ═══════════════════════════════════════════════════════════════════════════
   
-  static const int minPasswordLength = 8;
-  static const int maxPasswordLength = 32;
-  static const int minUsernameLength = 3;
-  static const int maxUsernameLength = 20;
+  static const String login = '/auth/login';
+  static const String register = '/auth/register';
+  static const String logout = '/auth/logout';
+  static const String refreshToken = '/auth/refresh';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
+  static const String verifyEmail = '/auth/verify-email';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // REGEX PATTERNS
+  // USER
   // ═══════════════════════════════════════════════════════════════════════════
   
-  static final RegExp emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-  );
-  
-  static final RegExp passwordRegex = RegExp(
-    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$',
-  );
+  static const String profile = '/user/profile';
+  static String userProfile(String userId) => '/user/$userId';
+  static const String updateProfile = '/user/profile';
+  static const String uploadAvatar = '/user/avatar';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ANIMATION DURATIONS
+  // GARAGE
   // ═══════════════════════════════════════════════════════════════════════════
   
-  static const Duration animationFast = Duration(milliseconds: 150);
-  static const Duration animationNormal = Duration(milliseconds: 300);
-  static const Duration animationSlow = Duration(milliseconds: 500);
+  static const String vehicles = '/garage/vehicles';
+  static String vehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
+  static String updateVehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
+  static String deleteVehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPACING
+  // CREW
   // ═══════════════════════════════════════════════════════════════════════════
   
-  static const double spacingXS = 4.0;
-  static const double spacingSM = 8.0;
-  static const double spacingMD = 16.0;
-  static const double spacingLG = 24.0;
-  static const double spacingXL = 32.0;
-  static const double spacingXXL = 48.0;
+  static const String crews = '/crew';
+  static String crew(String crewId) => '/crew/$crewId';
+  static String joinCrew(String crewId) => '/crew/$crewId/join';
+  static String leaveCrew(String crewId) => '/crew/$crewId/leave';
+  static String crewMembers(String crewId) => '/crew/$crewId/members';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BORDER RADIUS
+  // EVENTS
   // ═══════════════════════════════════════════════════════════════════════════
   
-  static const double radiusSM = 8.0;
-  static const double radiusMD = 12.0;
-  static const double radiusLG = 16.0;
-  static const double radiusXL = 24.0;
-  static const double radiusFull = 999.0;
+  static const String events = '/events';
+  static String event(String eventId) => '/events/$eventId';
+  static String joinEvent(String eventId) => '/events/$eventId/join';
+  static String leaveEvent(String eventId) => '/events/$eventId/leave';
+  static String eventAttendees(String eventId) => '/events/$eventId/attendees';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // API CONFIGURATION
+  // MOMENTS
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // TODO: Configure a URL base do seu backend
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
-  );
+  static const String moments = '/moments';
+  static String moment(String momentId) => '/moments/$momentId';
+  static String likeMoment(String momentId) => '/moments/$momentId/like';
+  static String unlikeMoment(String momentId) => '/moments/$momentId/unlike';
+  static String momentComments(String momentId) => '/moments/$momentId/comments';
+  static String addComment(String momentId) => '/moments/$momentId/comments';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAP
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  static const Duration apiConnectTimeout = Duration(seconds: 30);
-  static const Duration apiReceiveTimeout = Duration(seconds: 30);
-  static const Duration apiSendTimeout = Duration(seconds: 30);
+  static const String locations = '/map/locations';
+  static String nearbyLocations = '/map/locations/nearby';
+  static String userLocation = '/map/location';
 }
 
