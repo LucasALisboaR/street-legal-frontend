@@ -59,6 +59,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/badge_semfundo.png
     - assets/icons/
 
   # Fontes são carregadas via Google Fonts

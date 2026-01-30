@@ -7,6 +7,7 @@ import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/profile/domain/entities/badge_entity.dart';
 
 /// Página de Perfil do usuário
 class ProfilePage extends StatelessWidget {
@@ -74,8 +75,6 @@ class _ProfileView extends StatelessWidget {
 
                   // Veículo Ativo Destacado
                   _ActiveVehicleSection(),
-
-                  SizedBox(height: 20),
                 ],
               ),
             ),
@@ -551,7 +550,7 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -600,6 +599,7 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
               tabs: const [
                 Tab(text: 'GARAGEM'),
                 Tab(text: 'EQUIPES'),
+                Tab(text: 'BADGES'),
               ],
             ),
           ),
@@ -614,6 +614,7 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
               children: const [
                 _GarageTab(),
                 _CrewsTab(),
+                _BadgesTab(),
               ],
             ),
           ),
@@ -754,23 +755,31 @@ class _GarageTab extends StatelessWidget {
                           // Marca e Modelo
                           Row(
                             children: [
-                              Text(
-                                activeVehicle.brand.toUpperCase(),
-                                style: GoogleFonts.orbitron(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.white,
-                                  letterSpacing: 1,
+                              Flexible(
+                                child: Text(
+                                  activeVehicle.brand.toUpperCase(),
+                                  style: GoogleFonts.orbitron(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.white,
+                                    letterSpacing: 1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                activeVehicle.model.toUpperCase(),
-                                style: GoogleFonts.orbitron(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.accent,
-                                  letterSpacing: 1,
+                              Flexible(
+                                child: Text(
+                                  activeVehicle.model.toUpperCase(),
+                                  style: GoogleFonts.orbitron(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.accent,
+                                    letterSpacing: 1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -821,17 +830,7 @@ class _GarageTab extends StatelessWidget {
                                 const SizedBox(width: 12),
                                 GestureDetector(
                                   onTap: () {
-                                    // TODO: Implementar navegação ou scroll até a seção de garagem
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text('Role para baixo para ver todos os veículos'),
-                                        backgroundColor: AppColors.accent,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    );
+                                    context.push(AppRouter.garageManagement);
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -920,6 +919,482 @@ class _CrewsTab extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Tab de Badges
+class _BadgesTab extends StatelessWidget {
+  const _BadgesTab();
+
+  // Mock data - será substituído por dados reais do BLoC
+  List<BadgeEntity> get _mockBadges => [
+    BadgeEntity(
+      id: '1',
+      userId: 'user-1',
+      eventId: 'event-1',
+      eventName: 'Uberlândia Drag Racing',
+      eventDate: DateTime(2026, 1, 30),
+      badgeImageUrl: 'assets/badge_semfundo.png',
+      eventDescription: 'Evento oficial de arrancada em Uberlândia. Evolution - Gearheads Unite!',
+      eventLocation: 'Uberlândia, MG',
+      earnedAt: DateTime(2026, 1, 30),
+    ),
+    BadgeEntity(
+      id: '2',
+      userId: 'user-1',
+      eventId: 'event-2',
+      eventName: 'São Paulo Car Show',
+      eventDate: DateTime(2025, 12, 15),
+      badgeImageUrl: 'assets/badge_semfundo.png',
+      eventDescription: 'Grande exposição de carros clássicos e modificados em São Paulo.',
+      eventLocation: 'São Paulo, SP',
+      earnedAt: DateTime(2025, 12, 15),
+    ),
+    BadgeEntity(
+      id: '3',
+      userId: 'user-1',
+      eventId: 'event-3',
+      eventName: 'Rio Cruise Night',
+      eventDate: DateTime(2025, 11, 20),
+      badgeImageUrl: 'assets/badge_semfundo.png',
+      eventDescription: 'Cruze noturno pelas principais avenidas do Rio de Janeiro.',
+      eventLocation: 'Rio de Janeiro, RJ',
+      earnedAt: DateTime(2025, 11, 20),
+    ),
+    BadgeEntity(
+      id: '4',
+      userId: 'user-1',
+      eventId: 'event-4',
+      eventName: 'Belo Horizonte Track Day',
+      eventDate: DateTime(2025, 10, 10),
+      badgeImageUrl: 'assets/badge_semfundo.png',
+      eventDescription: 'Dia de pista oficial em Belo Horizonte com várias categorias.',
+      eventLocation: 'Belo Horizonte, MG',
+      earnedAt: DateTime(2025, 10, 10),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final badges = _mockBadges;
+
+    if (badges.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.workspace_premium_outlined,
+              color: AppColors.lightGrey,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum badge conquistado',
+              style: GoogleFonts.rajdhani(
+                fontSize: 16,
+                color: AppColors.lightGrey,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Participe de eventos oficiais para ganhar badges',
+              style: GoogleFonts.rajdhani(
+                fontSize: 14,
+                color: AppColors.lightGrey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(20),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+        childAspectRatio: 0.9,
+      ),
+      itemCount: badges.length,
+      itemBuilder: (context, index) {
+        final badge = badges[index];
+        return _BadgeCard(
+          badge: badge,
+          onTap: () => _showBadgeDetails(context, badge),
+        );
+      },
+    );
+  }
+
+  void _showBadgeDetails(BuildContext context, BadgeEntity badge) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => _BadgeDetailsDialog(badge: badge),
+    );
+  }
+}
+
+/// Card de Badge com efeito 3D
+class _BadgeCard extends StatefulWidget {
+  const _BadgeCard({
+    required this.badge,
+    required this.onTap,
+  });
+  final BadgeEntity badge;
+  final VoidCallback onTap;
+
+  @override
+  State<_BadgeCard> createState() => _BadgeCardState();
+}
+
+class _BadgeCardState extends State<_BadgeCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _rotationX = 0;
+  double _rotationY = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    setState(() {
+      _rotationY += details.delta.dx * 0.01;
+      _rotationX -= details.delta.dy * 0.01;
+      
+      // Limitar rotação
+      _rotationY = _rotationY.clamp(-0.3, 0.3);
+      _rotationX = _rotationX.clamp(-0.3, 0.3);
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    _controller.forward().then((_) {
+      _controller.reverse();
+      setState(() {
+        _rotationX = 0;
+        _rotationY = 0;
+      });
+    });
+  }
+
+  Widget _buildBadgeImage() {
+    // Tenta primeiro com o caminho do badge, depois com caminho hardcoded
+    final imagePath = widget.badge.badgeImageUrl;
+    
+    try {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.contain,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Erro ao carregar badge: $error');
+          debugPrint('Caminho tentado: $imagePath');
+          
+          // Tenta com caminho alternativo
+          try {
+            return Image.asset(
+              'assets/badge_semfundo.png',
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (context, error2, stackTrace2) {
+                debugPrint('Erro também com caminho alternativo: $error2');
+                return const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: AppColors.accent,
+                  size: 64,
+                );
+              },
+            );
+          } catch (e2) {
+            debugPrint('Exceção com caminho alternativo: $e2');
+            return const Icon(
+              Icons.workspace_premium_rounded,
+              color: AppColors.accent,
+              size: 64,
+            );
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Exceção ao carregar badge: $e');
+      return const Icon(
+        Icons.workspace_premium_rounded,
+        color: AppColors.accent,
+        size: 64,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onPanUpdate: _onPanUpdate,
+      onPanEnd: _onPanEnd,
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateX(_rotationX)
+          ..rotateY(_rotationY),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.black.withOpacity(0.3),
+                blurRadius: 10,
+                spreadRadius: 1,
+                offset: Offset(_rotationY * 10, _rotationX * 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.darkGrey,
+              ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildBadgeImage(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog com detalhes do Badge/Evento
+class _BadgeDetailsDialog extends StatelessWidget {
+  const _BadgeDetailsDialog({required this.badge});
+  final BadgeEntity badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        decoration: BoxDecoration(
+          color: AppColors.darkGrey,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.accent,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header com imagem do badge
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.accent.withOpacity(0.2),
+                    AppColors.black,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(22),
+                  topRight: Radius.circular(22),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Image.asset(
+                        badge.badgeImageUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        package: null,
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint('Erro ao carregar badge no dialog: $error');
+                          debugPrint('Stack trace: $stackTrace');
+                          debugPrint('Caminho tentado: ${badge.badgeImageUrl}');
+                          return const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: AppColors.accent,
+                            size: 80,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  // Botão fechar
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.white,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Informações do evento
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    badge.eventName,
+                    style: GoogleFonts.orbitron(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.white,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (badge.eventDescription != null) ...[
+                    Text(
+                      badge.eventDescription!,
+                      style: GoogleFonts.rajdhani(
+                        fontSize: 14,
+                        color: AppColors.lightGrey,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        color: AppColors.accent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatDate(badge.eventDate),
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 14,
+                          color: AppColors.lightGrey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (badge.eventLocation != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.accent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            badge.eventLocation!,
+                            style: GoogleFonts.rajdhani(
+                              fontSize: 14,
+                              color: AppColors.lightGrey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.accent,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.workspace_premium_rounded,
+                          color: AppColors.accent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Conquistado em ${_formatDate(badge.earnedAt)}',
+                          style: GoogleFonts.orbitron(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accent,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
+    ];
+    return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }
 }
 
