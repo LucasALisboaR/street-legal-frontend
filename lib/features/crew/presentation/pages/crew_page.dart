@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 
 /// Página de Crews - Lista de grupos/equipes
@@ -147,24 +148,9 @@ class _IconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppColors.darkGrey,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.mediumGrey,
-          ),
-        ),
-        child: Icon(
-          icon,
-          color: AppColors.white,
-          size: 22,
-        ),
-      ),
+    return AppIconButton(
+      icon: icon,
+      onPressed: onTap,
     );
   }
 }
@@ -329,4 +315,3 @@ class _CrewCard extends StatelessWidget {
     );
   }
 }
-

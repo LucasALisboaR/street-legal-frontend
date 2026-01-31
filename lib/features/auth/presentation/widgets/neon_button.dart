@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_button.dart';
 
 /// Botão com efeito neon/glow animado
 class NeonButton extends StatefulWidget {
@@ -51,97 +51,20 @@ class _NeonButtonState extends State<NeonButton>
 
   @override
   Widget build(BuildContext context) {
-    final isActive = widget.isEnabled && !widget.isLoading;
-
     return AnimatedBuilder(
       animation: _pulseAnimation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: AppColors.accent
-                          .withOpacity(0.4 * _pulseAnimation.value),
-                      blurRadius: 20 * _pulseAnimation.value,
-                    ),
-                  ]
-                : null,
-          ),
-          child: child,
-        );
-      },
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isActive ? widget.onPressed : null,
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              gradient: isActive
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.accent,
-                        AppColors.accentDark,
-                      ],
-                    )
-                  : null,
-              color: isActive ? null : AppColors.mediumGrey,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isActive ? AppColors.accent : AppColors.mediumGrey,
-              ),
-            ),
-            child: Center(
-              child: widget.isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.white,
-                        ),
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.icon != null) ...[
-                          Icon(
-                            widget.icon,
-                            color: isActive
-                                ? AppColors.white
-                                : AppColors.lightGrey,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 10),
-                        ],
-                        Text(
-                          widget.text,
-                          style: TextStyle(
-                            color: isActive
-                                ? AppColors.white
-                                : AppColors.lightGrey,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
+      builder: (context, child) => SizedBox(
+        width: widget.width,
+        child: child,
+      ),
+      child: AppButton(
+        label: widget.text,
+        icon: widget.icon,
+        onPressed: widget.onPressed,
+        isLoading: widget.isLoading,
+        isEnabled: widget.isEnabled,
+        height: widget.height,
       ),
     );
   }
 }
-

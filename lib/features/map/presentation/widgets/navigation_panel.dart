@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_button.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart'
     as nav_entities;
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
@@ -574,43 +575,20 @@ class RoutePreviewPanel extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      label: 'Cancelar',
                       onPressed: onCancel,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.darkGrey,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancelar',
-                        style: GoogleFonts.rajdhani(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      variant: AppButtonVariant.secondary,
+                      height: 46,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: AppButton(
+                      label: 'Iniciar navegação',
+                      icon: Icons.navigation_rounded,
                       onPressed: onStartNavigation,
-                      icon: const Icon(Icons.navigation_rounded, size: 18),
-                      label: Text(
-                        'Iniciar navegação',
-                        style: GoogleFonts.rajdhani(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      height: 46,
                     ),
                   ),
                 ],
@@ -619,14 +597,12 @@ class RoutePreviewPanel extends StatelessWidget {
             if (mapState.isCalculatingRoute || route == null)
               Align(
                 alignment: Alignment.center,
-                child: TextButton(
+                child: AppButton(
+                  label: 'Cancelar',
                   onPressed: onCancel,
-                  child: Text(
-                    'Cancelar',
-                    style: GoogleFonts.rajdhani(
-                      color: AppColors.lightGrey,
-                    ),
-                  ),
+                  variant: AppButtonVariant.ghost,
+                  expand: false,
+                  height: 40,
                 ),
               ),
           ],

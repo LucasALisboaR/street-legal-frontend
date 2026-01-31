@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_bottom_sheet.dart';
+import 'package:gearhead_br/core/widgets/app_modal.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
 import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
 import 'package:gearhead_br/features/profile/presentation/widgets/vehicle_form_dialog.dart';
@@ -123,10 +125,8 @@ class GarageSection extends StatelessWidget {
   }
 
   void _showAddVehicleDialog(BuildContext context) {
-    showModalBottomSheet(
+    AppBottomSheet.show<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider.value(
         value: context.read<GarageBloc>(),
         child: const VehicleFormDialog(),
@@ -135,10 +135,8 @@ class GarageSection extends StatelessWidget {
   }
 
   void _showEditVehicleDialog(BuildContext context, VehicleEntity vehicle) {
-    showModalBottomSheet(
+    AppBottomSheet.show<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider.value(
         value: context.read<GarageBloc>(),
         child: VehicleFormDialog(vehicle: vehicle),
@@ -147,54 +145,26 @@ class GarageSection extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext context, VehicleEntity vehicle) {
-    showDialog(
+    AppModal.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Remover veículo?',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'Tem certeza que deseja remover "${vehicle.displayName}" da sua garagem?',
-          style: GoogleFonts.rajdhani(
-            color: AppColors.lightGrey,
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<GarageBloc>().add(GarageVehicleDeleted(vehicle.id));
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Remover',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      title: const Text('Remover veículo?'),
+      content: Text(
+        'Tem certeza que deseja remover "${vehicle.displayName}" da sua garagem?',
       ),
+      actions: [
+        AppModal.action(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(context),
+        ),
+        AppModal.action(
+          label: 'Remover',
+          isDestructive: true,
+          onPressed: () {
+            context.read<GarageBloc>().add(GarageVehicleDeleted(vehicle.id));
+            Navigator.pop(context);
+          },
+        ),
+      ],
     );
   }
 }

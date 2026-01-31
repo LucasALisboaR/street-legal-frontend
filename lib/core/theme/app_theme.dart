@@ -12,6 +12,12 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       
       // ═══════════════════════════════════════════════════════════════════════
       // COLOR SCHEME
@@ -307,4 +313,3 @@ class AppTheme {
     );
   }
 }
-

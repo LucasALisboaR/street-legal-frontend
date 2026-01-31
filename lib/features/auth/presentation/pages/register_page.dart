@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/register_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
@@ -75,12 +77,9 @@ class _RegisterView extends StatelessWidget {
                   const SizedBox(height: 16),
                   
                   // Botão voltar
-                  IconButton(
+                  AppIconButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
                     onPressed: () => context.pop(),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.white,
-                    ),
                   ),
                   
                   const SizedBox(height: 24),
@@ -201,15 +200,16 @@ class _RegisterView extends StatelessWidget {
               errorText: state.passwordError,
               enabled: !isLoading,
               onChanged: (value) => bloc.add(RegisterPasswordChanged(value)),
-              suffixIcon: IconButton(
-                icon: Icon(
+              suffixIcon: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () =>
+                    bloc.add(const RegisterPasswordVisibilityToggled()),
+                child: Icon(
                   state.isPasswordVisible
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: AppColors.lightGrey,
                 ),
-                onPressed: () =>
-                    bloc.add(const RegisterPasswordVisibilityToggled()),
               ),
             ),
             
@@ -231,15 +231,16 @@ class _RegisterView extends StatelessWidget {
                   bloc.add(const RegisterSubmitted());
                 }
               },
-              suffixIcon: IconButton(
-                icon: Icon(
+              suffixIcon: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => bloc.add(
+                  const RegisterConfirmPasswordVisibilityToggled(),
+                ),
+                child: Icon(
                   state.isConfirmPasswordVisible
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: AppColors.lightGrey,
-                ),
-                onPressed: () => bloc.add(
-                  const RegisterConfirmPasswordVisibilityToggled(),
                 ),
               ),
             ),
@@ -250,21 +251,17 @@ class _RegisterView extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Checkbox(
+                Transform.scale(
+                  scale: 0.85,
+                  child: CupertinoSwitch(
                     value: state.termsAccepted,
                     onChanged: isLoading
                         ? null
                         : (value) => bloc.add(
-                              RegisterTermsAcceptedChanged(value ?? false),
+                              RegisterTermsAcceptedChanged(value),
                             ),
                     activeColor: AppColors.accent,
-                    side: const BorderSide(color: AppColors.mediumGrey),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                    trackColor: AppColors.mediumGrey,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -318,4 +315,3 @@ class _RegisterView extends StatelessWidget {
     );
   }
 }
-

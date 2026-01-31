@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_button.dart';
+import 'package:gearhead_br/core/widgets/app_modal.dart';
+import 'package:gearhead_br/core/widgets/app_text_field.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
@@ -323,23 +326,11 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: AppButton(
+                        label: 'Cancelar',
                         onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: const BorderSide(color: AppColors.mediumGrey),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancelar',
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.lightGrey,
-                          ),
-                        ),
+                        variant: AppButtonVariant.secondary,
+                        height: 48,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -440,130 +431,55 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
   void _pickImage() {
     // TODO: Implementar seleção de imagem com image_picker
     // Por enquanto, mostra um dialog informando que será implementado
-    showDialog<void>(
+    AppModal.show<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Selecionar Foto',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'Funcionalidade de upload de foto será implementada em breve. Por enquanto, você pode usar uma URL de imagem.',
-          style: GoogleFonts.rajdhani(
-            color: AppColors.lightGrey,
-            fontSize: 14,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showImageUrlDialog();
-            },
-            child: Text(
-              'Usar URL',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      title: const Text('Selecionar Foto'),
+      content: const Text(
+        'Funcionalidade de upload de foto será implementada em breve. Por enquanto, você pode usar uma URL de imagem.',
       ),
+      actions: [
+        AppModal.action(
+          label: 'OK',
+          onPressed: () => Navigator.pop(context),
+        ),
+        AppModal.action(
+          label: 'Usar URL',
+          onPressed: () {
+            Navigator.pop(context);
+            _showImageUrlDialog();
+          },
+        ),
+      ],
     );
   }
 
   void _showImageUrlDialog() {
     final controller = TextEditingController(text: _currentImageUrl ?? '');
-    showDialog<void>(
+    AppModal.show<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'URL da Imagem',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          style: GoogleFonts.rajdhani(
-            color: AppColors.white,
-            fontSize: 14,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Cole a URL da imagem aqui',
-            hintStyle: GoogleFonts.rajdhani(
-              color: AppColors.lightGrey,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.mediumGrey,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.accent,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedImageUrl = controller.text.trim().isNotEmpty
-                    ? controller.text.trim()
-                    : null;
-              });
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Salvar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      title: const Text('URL da Imagem'),
+      content: AppTextField(
+        controller: controller,
+        hintText: 'Cole a URL da imagem aqui',
+        textInputAction: TextInputAction.done,
       ),
+      actions: [
+        AppModal.action(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(context),
+        ),
+        AppModal.action(
+          label: 'Salvar',
+          onPressed: () {
+            setState(() {
+              _selectedImageUrl = controller.text.trim().isNotEmpty
+                  ? controller.text.trim()
+                  : null;
+            });
+            Navigator.pop(context);
+          },
+        ),
+      ],
     );
   }
 }
-

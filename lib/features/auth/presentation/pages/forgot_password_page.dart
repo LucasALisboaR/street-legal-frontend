@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
+import 'package:gearhead_br/core/widgets/app_modal.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/forgot_password_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
@@ -30,57 +32,46 @@ class _ForgotPasswordView extends StatelessWidget {
       listener: (context, state) {
         if (state.status == ForgotPasswordStatus.success) {
           // Mostrar diálogo de sucesso
-          showDialog<void>(
+          AppModal.show<void>(
             context: context,
-            builder: (dialogContext) => AlertDialog(
-              backgroundColor: AppColors.darkGrey,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(
-                  color: AppColors.mediumGrey,
-                ),
-              ),
-              icon: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.success.withValues(alpha: 0.1),
-                ),
-                child: const Icon(
-                  Icons.check_circle_outline,
-                  color: AppColors.success,
-                  size: 48,
-                ),
-              ),
-              title: Text(
-                'E-mail enviado!',
-                style: GoogleFonts.orbitron(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                'Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.rajdhani(
-                  color: AppColors.lightGrey,
-                  fontSize: 16,
-                ),
-              ),
-              actions: [
-                SizedBox(
-                  width: double.infinity,
-                  child: NeonButton(
-                    text: 'VOLTAR AO LOGIN',
-                    height: 48,
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      context.pop();
-                    },
+            title: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.success.withValues(alpha: 0.12),
                   ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    color: AppColors.success,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'E-mail enviado!',
+                  style: GoogleFonts.orbitron(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
+            content: const Text(
+              'Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              AppModal.action(
+                label: 'Voltar ao login',
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.pop();
+                },
+              ),
+            ],
           );
         } else if (state.status == ForgotPasswordStatus.failure) {
           // Mostrar erro
@@ -125,12 +116,9 @@ class _ForgotPasswordView extends StatelessWidget {
                   const SizedBox(height: 16),
                   
                   // Botão voltar
-                  IconButton(
+                  AppIconButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
                     onPressed: () => context.pop(),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.white,
-                    ),
                   ),
                   
                   const SizedBox(height: 40),
@@ -291,4 +279,3 @@ class _ForgotPasswordView extends StatelessWidget {
     );
   }
 }
-

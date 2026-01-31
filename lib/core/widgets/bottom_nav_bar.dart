@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/theme/ios_design_system.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 
 /// Item de navegação
@@ -25,70 +28,78 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.darkGrey,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.mediumGrey.withOpacity(0.5),
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(IosDesignSystem.radiusLarge),
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItemWidget(
-                item: NavItem.map,
-                icon: Icons.explore_outlined,
-                activeIcon: Icons.explore,
-                label: 'Explorar',
-                isActive: currentItem == NavItem.map,
-                onTap: () => _navigateTo(context, NavItem.map),
+      child: BackdropFilter(
+        filter: IosDesignSystem.modalBlur,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.darkGrey.withOpacity(0.9),
+            border: Border(
+              top: BorderSide(
+                color: AppColors.mediumGrey.withOpacity(0.5),
               ),
-              _NavItemWidget(
-                item: NavItem.crew,
-                icon: Icons.groups_outlined,
-                activeIcon: Icons.groups,
-                label: 'Equipes',
-                isActive: currentItem == NavItem.crew,
-                onTap: () => _navigateTo(context, NavItem.crew),
-              ),
-              _NavItemWidget(
-                item: NavItem.events,
-                icon: Icons.event_outlined,
-                activeIcon: Icons.event,
-                label: 'Eventos',
-                isActive: currentItem == NavItem.events,
-                onTap: () => _navigateTo(context, NavItem.events),
-              ),
-              // _NavItemWidget(
-              //   item: NavItem.moments,
-              //   icon: Icons.photo_library_outlined,
-              //   activeIcon: Icons.photo_library,
-              //   label: 'Moments',
-              //   isActive: currentItem == NavItem.moments,
-              //   onTap: () => _navigateTo(context, NavItem.moments),
-              // ),
-              _NavItemWidget(
-                item: NavItem.profile,
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Perfil',
-                isActive: currentItem == NavItem.profile,
-                onTap: () => _navigateTo(context, NavItem.profile),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
               ),
             ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItemWidget(
+                    item: NavItem.map,
+                    icon: Icons.explore_outlined,
+                    activeIcon: Icons.explore,
+                    label: 'Explorar',
+                    isActive: currentItem == NavItem.map,
+                    onTap: () => _navigateTo(context, NavItem.map),
+                  ),
+                  _NavItemWidget(
+                    item: NavItem.crew,
+                    icon: Icons.groups_outlined,
+                    activeIcon: Icons.groups,
+                    label: 'Equipes',
+                    isActive: currentItem == NavItem.crew,
+                    onTap: () => _navigateTo(context, NavItem.crew),
+                  ),
+                  _NavItemWidget(
+                    item: NavItem.events,
+                    icon: Icons.event_outlined,
+                    activeIcon: Icons.event,
+                    label: 'Eventos',
+                    isActive: currentItem == NavItem.events,
+                    onTap: () => _navigateTo(context, NavItem.events),
+                  ),
+                  // _NavItemWidget(
+                  //   item: NavItem.moments,
+                  //   icon: Icons.photo_library_outlined,
+                  //   activeIcon: Icons.photo_library,
+                  //   label: 'Moments',
+                  //   isActive: currentItem == NavItem.moments,
+                  //   onTap: () => _navigateTo(context, NavItem.moments),
+                  // ),
+                  _NavItemWidget(
+                    item: NavItem.profile,
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: 'Perfil',
+                    isActive: currentItem == NavItem.profile,
+                    onTap: () => _navigateTo(context, NavItem.profile),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -211,5 +222,4 @@ class _NavItemWidgetState extends State<_NavItemWidget>
     );
   }
 }
-
 

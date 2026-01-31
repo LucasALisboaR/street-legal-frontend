@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_bottom_sheet.dart';
+import 'package:gearhead_br/core/widgets/app_button.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
+import 'package:gearhead_br/core/widgets/app_text_field.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
@@ -274,20 +279,13 @@ class _MapPageContentState extends State<_MapPageContent> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
+                  AppButton(
                     onPressed: () {
                       context.read<MapBloc>().add(const MapInitialized());
                     },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Tentar novamente'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: AppColors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                    ),
+                    icon: Icons.refresh,
+                    label: 'Tentar novamente',
+                    expand: false,
                   ),
                 ],
               ),
@@ -442,13 +440,12 @@ class _MapPageContentState extends State<_MapPageContent> {
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh, color: AppColors.white, size: 20),
+            AppIconButton(
+              icon: Icons.refresh,
+              size: 32,
               onPressed: () {
                 context.read<MapBloc>().add(const MapInitialized());
               },
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
             ),
           ],
         ),
@@ -493,13 +490,8 @@ class _MapPageContentState extends State<_MapPageContent> {
 
   /// Exibe sheet de busca
   void _showSearchSheet(BuildContext context) {
-    showModalBottomSheet<void>(
+    AppBottomSheet.show<void>(
       context: context,
-      backgroundColor: AppColors.darkGrey,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
@@ -520,12 +512,8 @@ class _MapPageContentState extends State<_MapPageContent> {
 
   /// Exibe filtros
   void _showFilters(BuildContext context) {
-    showModalBottomSheet<void>(
+    AppBottomSheet.show<void>(
       context: context,
-      backgroundColor: AppColors.darkGrey,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -670,47 +658,25 @@ class _SearchSheetState extends State<_SearchSheet> {
         // Campo de busca
         Padding(
           padding: const EdgeInsets.all(16),
-          child: TextField(
+          child: AppTextField(
             controller: _searchController,
+            hintText: 'Para onde?',
+            prefixIcon: Icons.search_rounded,
             onChanged: _search,
-            style: GoogleFonts.rajdhani(
-              color: AppColors.white,
-              fontSize: 16,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Para onde?',
-              hintStyle: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontSize: 16,
-              ),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: AppColors.lightGrey,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: AppColors.lightGrey),
-                      onPressed: () {
-                        _searchController.clear();
-                        _loadInitialSuggestions();
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.black,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.mediumGrey),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.mediumGrey),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.accent),
-              ),
-            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      _searchController.clear();
+                      _loadInitialSuggestions();
+                    },
+                    child: const Icon(
+                      CupertinoIcons.clear_circled_solid,
+                      color: AppColors.lightGrey,
+                      size: 18,
+                    ),
+                  )
+                : null,
           ),
         ),
 
@@ -883,15 +849,13 @@ class _FilterOption extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      trailing: Switch(
+      trailing: CupertinoSwitch(
         value: isSelected,
         onChanged: (_) {
           // TODO: Implementar toggle de filtro
         },
         activeColor: AppColors.accent,
-        activeTrackColor: AppColors.accent.withOpacity(0.3),
-        inactiveThumbColor: AppColors.lightGrey,
-        inactiveTrackColor: AppColors.mediumGrey,
+        trackColor: AppColors.mediumGrey,
       ),
     );
   }

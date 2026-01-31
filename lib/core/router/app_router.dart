@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:gearhead_br/core/widgets/app_button.dart';
 import 'package:gearhead_br/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:gearhead_br/features/auth/presentation/pages/login_page.dart';
 import 'package:gearhead_br/features/auth/presentation/pages/register_page.dart';
@@ -157,9 +159,10 @@ class AppRouter {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
+              AppButton(
+                label: 'Voltar',
                 onPressed: () => context.go(map),
-                child: const Text('VOLTAR'),
+                expand: false,
               ),
             ],
           ),
@@ -182,12 +185,14 @@ class AppRouter {
       key: state.pageKey,
       child: child,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurveTween(curve: Curves.easeOut).animate(animation),
+        return CupertinoPageTransition(
+          primaryRouteAnimation: animation,
+          secondaryRouteAnimation: secondaryAnimation,
+          linearTransition: true,
           child: child,
         );
       },
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: const Duration(milliseconds: 350),
     );
   }
 }

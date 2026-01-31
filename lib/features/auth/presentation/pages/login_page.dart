@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gearhead_br/core/di/injection.dart';
@@ -218,14 +219,15 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   bloc.add(const LoginSubmitted());
                 }
               },
-              suffixIcon: IconButton(
-                icon: Icon(
+              suffixIcon: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => bloc.add(const LoginPasswordVisibilityToggled()),
+                child: Icon(
                   state.isPasswordVisible
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: AppColors.lightGrey,
                 ),
-                onPressed: () => bloc.add(const LoginPasswordVisibilityToggled()),
               ),
             ),
             
@@ -234,7 +236,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             // Esqueci minha senha
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
                 onPressed: isLoading
                     ? null
                     : () => context.push(AppRouter.forgotPassword),
@@ -299,4 +302,3 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 }
-

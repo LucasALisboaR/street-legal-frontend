@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -5,6 +6,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_theme.dart';
+import 'package:gearhead_br/core/theme/ios_design_system.dart';
 import 'package:gearhead_br/core/constants/mapbox_constants.dart';
 import 'firebase_options.dart';
 
@@ -67,7 +69,12 @@ class GearheadApp extends StatelessWidget {
       
       // Configuração de rotas
       routerConfig: AppRouter.router,
+      builder: (context, child) {
+        return CupertinoTheme(
+          data: IosDesignSystem.cupertinoTheme,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 
 /// Página de Momentos (Feed de fotos)
@@ -130,21 +131,10 @@ class _IconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppColors.accent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          icon,
-          color: AppColors.white,
-          size: 24,
-        ),
-      ),
+    return AppIconButton(
+      icon: icon,
+      onPressed: onTap,
+      isAccent: true,
     );
   }
 }
@@ -248,12 +238,10 @@ class _MomentCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
+                AppIconButton(
+                  icon: Icons.more_horiz,
                   onPressed: () {},
-                  icon: const Icon(
-                    Icons.more_horiz,
-                    color: AppColors.lightGrey,
-                  ),
+                  size: 36,
                 ),
               ],
             ),
@@ -385,4 +373,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

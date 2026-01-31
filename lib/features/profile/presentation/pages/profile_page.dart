@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/core/widgets/app_icon_button.dart';
+import 'package:gearhead_br/core/widgets/app_modal.dart';
+import 'package:gearhead_br/core/widgets/app_text_field.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
 import 'package:gearhead_br/features/profile/domain/entities/badge_entity.dart';
@@ -88,54 +92,24 @@ class _ProfileView extends StatelessWidget {
   }
 
   void _showLogoutConfirmation(BuildContext context) {
-    showDialog<void>(
+    AppModal.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      title: const Text('Sair do app?'),
+      content: const Text('Você será desconectado da sua conta.'),
+      actions: [
+        AppModal.action(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Sair do app?',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+        AppModal.action(
+          label: 'Sair',
+          isDestructive: true,
+          onPressed: () {
+            Navigator.pop(context);
+            context.go(AppRouter.login);
+          },
         ),
-        content: Text(
-          'Você será desconectado da sua conta.',
-          style: GoogleFonts.rajdhani(
-            color: AppColors.lightGrey,
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.go(AppRouter.login);
-            },
-            child: Text(
-              'Sair',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -151,24 +125,9 @@ class _IconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppColors.darkGrey,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.mediumGrey,
-          ),
-        ),
-        child: Icon(
-          icon,
-          color: AppColors.white,
-          size: 22,
-        ),
-      ),
+    return AppIconButton(
+      icon: icon,
+      onPressed: onTap,
     );
   }
 }
@@ -415,122 +374,54 @@ class _UserInfoSection extends StatelessWidget {
   }
 
   void _showEditProfileDialog(BuildContext context) {
-    showDialog<void>(
+    AppModal.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Editar Foto de Perfil',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'Funcionalidade de upload de foto será implementada em breve.',
-          style: GoogleFonts.rajdhani(
-            color: AppColors.lightGrey,
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      title: const Text('Editar Foto de Perfil'),
+      content: const Text(
+        'Funcionalidade de upload de foto será implementada em breve.',
       ),
+      actions: [
+        AppModal.action(
+          label: 'OK',
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
     );
   }
 
   void _showEditNameDialog(BuildContext context) {
     final controller = TextEditingController(text: _userName);
-    showDialog<void>(
+    AppModal.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Editar Nome',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          style: GoogleFonts.rajdhani(
-            color: AppColors.white,
-            fontSize: 16,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Digite seu nome',
-            hintStyle: GoogleFonts.rajdhani(
-              color: AppColors.lightGrey,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.mediumGrey,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.accent,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implementar atualização do nome via BLoC/Repository
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Nome atualizado!'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              );
-            },
-            child: Text(
-              'Salvar',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      title: const Text('Editar Nome'),
+      content: AppTextField(
+        controller: controller,
+        hintText: 'Digite seu nome',
+        textInputAction: TextInputAction.done,
       ),
+      actions: [
+        AppModal.action(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(context),
+        ),
+        AppModal.action(
+          label: 'Salvar',
+          onPressed: () {
+            // TODO: Implementar atualização do nome via BLoC/Repository
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Nome atualizado!'),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
@@ -543,21 +434,8 @@ class _ActiveVehicleSection extends StatefulWidget {
   State<_ActiveVehicleSection> createState() => _ActiveVehicleSectionState();
 }
 
-class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _ActiveVehicleSectionState extends State<_ActiveVehicleSection> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -565,7 +443,7 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          children: [
           // Tab Bar
           Container(
             decoration: BoxDecoration(
@@ -576,31 +454,70 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
                 width: 1,
               ),
             ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: CupertinoSlidingSegmentedControl<int>(
+                groupValue: _selectedIndex,
+                backgroundColor: AppColors.black,
+                thumbColor: AppColors.accent,
+                children: {
+                  0: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'GARAGEM',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: _selectedIndex == 0
+                            ? AppColors.white
+                            : AppColors.lightGrey,
+                      ),
+                    ),
+                  ),
+                  1: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'EQUIPES',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: _selectedIndex == 1
+                            ? AppColors.white
+                            : AppColors.lightGrey,
+                      ),
+                    ),
+                  ),
+                  2: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'BADGES',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: _selectedIndex == 2
+                            ? AppColors.white
+                            : AppColors.lightGrey,
+                      ),
+                    ),
+                  ),
+                },
+                onValueChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedIndex = value);
+                },
               ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              labelColor: AppColors.white,
-              unselectedLabelColor: AppColors.lightGrey,
-              labelStyle: GoogleFonts.orbitron(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-              unselectedLabelStyle: GoogleFonts.orbitron(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
-              ),
-              tabs: const [
-                Tab(text: 'GARAGEM'),
-                Tab(text: 'EQUIPES'),
-                Tab(text: 'BADGES'),
-              ],
             ),
           ),
 
@@ -609,13 +526,13 @@ class _ActiveVehicleSectionState extends State<_ActiveVehicleSection>
           // Tab Bar View
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.5,
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                _GarageTab(),
-                _CrewsTab(),
-                _BadgesTab(),
-              ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: switch (_selectedIndex) {
+                0 => const _GarageTab(key: ValueKey('garage')),
+                1 => const _CrewsTab(key: ValueKey('crews')),
+                _ => const _BadgesTab(key: ValueKey('badges')),
+              },
             ),
           ),
         ],
@@ -1032,7 +949,7 @@ class _BadgesTab extends StatelessWidget {
   }
 
   void _showBadgeDetails(BuildContext context, BadgeEntity badge) {
-    showDialog<void>(
+    showCupertinoDialog<void>(
       context: context,
       builder: (context) => _BadgeDetailsDialog(badge: badge),
     );
@@ -1255,12 +1172,10 @@ class _BadgeDetailsDialog extends StatelessWidget {
                   Positioned(
                     top: 12,
                     right: 12,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.white,
-                      ),
+                    child: AppIconButton(
+                      icon: Icons.close_rounded,
                       onPressed: () => Navigator.pop(context),
+                      size: 36,
                     ),
                   ),
                 ],
@@ -1397,4 +1312,3 @@ class _BadgeDetailsDialog extends StatelessWidget {
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }
 }
-

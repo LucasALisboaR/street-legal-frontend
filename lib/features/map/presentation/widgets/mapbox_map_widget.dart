@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:gearhead_br/core/theme/ios_design_system.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
@@ -536,18 +537,12 @@ class MapControlButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isAccent
               ? AppColors.accent
-              : AppColors.darkGrey.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12),
+              : AppColors.darkGrey.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(IosDesignSystem.radiusMedium),
           border: Border.all(
             color: isAccent ? AppColors.accent : AppColors.mediumGrey,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: IosDesignSystem.softShadow,
         ),
         child: isLoading
             ? const Center(
