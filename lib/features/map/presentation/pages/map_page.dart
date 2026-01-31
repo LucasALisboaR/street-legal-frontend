@@ -110,21 +110,28 @@ class _MapPageContentState extends State<_MapPageContent> {
                   },
                 ),
 
+              // Badge de limite de velocidade (modo Drive)
+              if (state.isNavigating)
+                Positioned(
+                  top: 80,
+                  right: 16,
+                  child: SpeedLimitBadge(speedLimitKmh: state.speedLimitKmh),
+                ),
+
               // Header overlay (search bar) - oculto durante navegação
               if (!state.isNavigating) _buildHeader(context, state),
 
               // Botões de controle do mapa
               _buildMapControls(context, state),
 
-              // Botões de navegação (iniciar e cancelar) quando há destino selecionado
+              // Preview de rota com botões de iniciar/cancelar
               if (state.hasDestination && !state.isNavigating)
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: StartNavigationButton(
-                    destination: state.selectedDestination!,
-                    isCalculating: state.isCalculatingRoute,
+                  child: RoutePreviewPanel(
+                    mapState: state,
                     onStartNavigation: () {
                       context.read<MapBloc>().add(
                             NavigationStarted(
@@ -133,7 +140,7 @@ class _MapPageContentState extends State<_MapPageContent> {
                           );
                     },
                     onCancel: () {
-                      context.read<MapBloc>().add(const DestinationCleared());
+                      context.read<MapBloc>().add(const RoutePreviewCancelled());
                     },
                   ),
                 ),
