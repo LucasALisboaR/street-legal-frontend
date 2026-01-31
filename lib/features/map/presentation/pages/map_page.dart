@@ -96,6 +96,9 @@ class _MapPageContentState extends State<_MapPageContent> {
               // Mapa Mapbox - só exibe quando tem localização
               MapboxMapWidget(
                 mapState: state,
+                onUserCameraInteraction: () {
+                  context.read<MapBloc>().add(const CameraFollowDisabled());
+                },
                 onMapCreated: (mapboxMap) {
                   _mapboxMap = mapboxMap;
                 },
@@ -110,21 +113,50 @@ class _MapPageContentState extends State<_MapPageContent> {
                   },
                 ),
 
+              // Badge de limite de velocidade (modo Drive)
+              if (state.isNavigating)
+                Positioned(
+                  left: 16,
+                  bottom: 110,
+                  child: SafeArea(
+                    top: false,
+                    right: false,
+                    child: SpeedLimitBadge(speedLimitKmh: state.speedLimitKmh),
+                  ),
+                ),
+
               // Header overlay (search bar) - oculto durante navegação
               if (!state.isNavigating) _buildHeader(context, state),
 
               // Botões de controle do mapa
               _buildMapControls(context, state),
 
-              // Botões de navegação (iniciar e cancelar) quando há destino selecionado
+              // Botão de recentralizar no modo Drive
+              if (state.isNavigating && !state.isFollowingUser)
+                Positioned(
+                  right: 16,
+                  bottom: 110,
+                  child: SafeArea(
+                    top: false,
+                    left: false,
+                    child: MapControlButton(
+                      icon: Icons.my_location,
+                      isAccent: true,
+                      onTap: () {
+                        context.read<MapBloc>().add(const CameraCenteredOnUser());
+                      },
+                    ),
+                  ),
+                ),
+
+              // Preview de rota com botões de iniciar/cancelar
               if (state.hasDestination && !state.isNavigating)
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: StartNavigationButton(
-                    destination: state.selectedDestination!,
-                    isCalculating: state.isCalculatingRoute,
+                  child: RoutePreviewPanel(
+                    mapState: state,
                     onStartNavigation: () {
                       context.read<MapBloc>().add(
                             NavigationStarted(
@@ -133,7 +165,7 @@ class _MapPageContentState extends State<_MapPageContent> {
                           );
                     },
                     onCancel: () {
-                      context.read<MapBloc>().add(const DestinationCleared());
+                      context.read<MapBloc>().add(const RoutePreviewCancelled());
                     },
                   ),
                 ),
@@ -336,39 +368,46 @@ class _MapPageContentState extends State<_MapPageContent> {
     final hasCTA = state.hasDestination && !state.isNavigating;
     final bottomOffset = hasCTA ? 240.0 : 120.0;
 
+    final isPreview = state.isPreviewing;
+    final topOffset = isPreview ? 132.0 : null;
+    final bottom = isPreview ? null : bottomOffset;
+
     return Positioned(
       right: 16,
-      bottom: bottomOffset,
-      child: Column(
-        children: [
-          MapControlButton(
-            icon: Icons.add,
-            onTap: () {
-              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: true));
-              _zoomMap(true, state);
-            },
-          ),
-          const SizedBox(height: 8),
-          MapControlButton(
-            icon: Icons.remove,
-            onTap: () {
-              context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: false));
-              _zoomMap(false, state);
-            },
-          ),
-          const SizedBox(height: 16),
-          MapControlButton(
-            icon: state.isFollowingUser
-                ? Icons.my_location
-                : Icons.location_searching,
-            isAccent: state.isFollowingUser,
-            isLoading: state.isLoadingLocation,
-            onTap: () {
-              context.read<MapBloc>().add(const CameraCenteredOnUser());
-              _centerOnUser(state);
-            },
-          ),
-        ],
+      top: topOffset,
+      bottom: bottom,
+      child: SafeArea(
+        child: Column(
+          children: [
+            MapControlButton(
+              icon: Icons.add,
+              onTap: () {
+                context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: true));
+                _zoomMap(true, state);
+              },
+            ),
+            const SizedBox(height: 8),
+            MapControlButton(
+              icon: Icons.remove,
+              onTap: () {
+                context.read<MapBloc>().add(const CameraZoomChanged(zoomIn: false));
+                _zoomMap(false, state);
+              },
+            ),
+            const SizedBox(height: 16),
+            MapControlButton(
+              icon: state.isFollowingUser
+                  ? Icons.my_location
+                  : Icons.location_searching,
+              isAccent: state.isFollowingUser,
+              isLoading: state.isLoadingLocation,
+              onTap: () {
+                context.read<MapBloc>().add(const CameraCenteredOnUser());
+                _centerOnUser(state);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

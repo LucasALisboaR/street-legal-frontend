@@ -302,6 +302,56 @@ class NavigationPanel extends StatelessWidget {
   }
 }
 
+/// Badge de limite de velocidade exibido no modo Drive
+class SpeedLimitBadge extends StatelessWidget {
+  const SpeedLimitBadge({
+    super.key,
+    required this.speedLimitKmh,
+  });
+
+  final double? speedLimitKmh;
+
+  @override
+  Widget build(BuildContext context) {
+    final speedText = speedLimitKmh != null ? speedLimitKmh!.round().toString() : '—';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.darkGrey.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.mediumGrey),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.speed_rounded,
+            color: AppColors.accent,
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Limite: $speedText km/h',
+            style: GoogleFonts.rajdhani(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Botão flutuante para iniciar navegação quando há destino selecionado
 /// Inclui botão de cancelar ao lado (estilo Mapbox)
 class StartNavigationButton extends StatelessWidget {
@@ -440,3 +490,192 @@ class StartNavigationButton extends StatelessWidget {
   }
 }
 
+/// Painel de preview da rota antes de iniciar a navegação
+class RoutePreviewPanel extends StatelessWidget {
+  const RoutePreviewPanel({
+    super.key,
+    required this.mapState,
+    required this.onStartNavigation,
+    required this.onCancel,
+  });
+
+  final MapState mapState;
+  final VoidCallback onStartNavigation;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = mapState.activeRoute;
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.darkGrey.withOpacity(0.97),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.mediumGrey),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (mapState.isCalculatingRoute || route == null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Calculando rota...',
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 16,
+                      color: AppColors.lightGrey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _PreviewInfoItem(
+                    icon: Icons.access_time_rounded,
+                    label: 'Tempo',
+                    value: route.formattedDuration,
+                  ),
+                  Container(
+                    width: 1,
+                    height: 28,
+                    color: AppColors.mediumGrey,
+                  ),
+                  _PreviewInfoItem(
+                    icon: Icons.route_rounded,
+                    label: 'Distância',
+                    value: route.formattedDistance,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onCancel,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkGrey,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancelar',
+                        style: GoogleFonts.rajdhani(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: onStartNavigation,
+                      icon: const Icon(Icons.navigation_rounded, size: 18),
+                      label: Text(
+                        'Iniciar navegação',
+                        style: GoogleFonts.rajdhani(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (mapState.isCalculatingRoute || route == null)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: onCancel,
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.rajdhani(
+                      color: AppColors.lightGrey,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewInfoItem extends StatelessWidget {
+  const _PreviewInfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: AppColors.lightGrey, size: 16),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.orbitron(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.white,
+              ),
+            ),
+            Text(
+              label,
+              style: GoogleFonts.rajdhani(
+                fontSize: 10,
+                color: AppColors.lightGrey,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

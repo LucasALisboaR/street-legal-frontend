@@ -72,6 +72,11 @@ class CameraCenteredOnUser extends MapEvent {
   const CameraCenteredOnUser();
 }
 
+/// Desativa o modo de seguir usuário após interação manual
+class CameraFollowDisabled extends MapEvent {
+  const CameraFollowDisabled();
+}
+
 /// Atualiza o zoom da câmera
 class CameraZoomChanged extends MapEvent {
   const CameraZoomChanged({
@@ -101,6 +106,11 @@ class DestinationCleared extends MapEvent {
   const DestinationCleared();
 }
 
+/// Cancela o preview de rota
+class RoutePreviewCancelled extends MapEvent {
+  const RoutePreviewCancelled();
+}
+
 /// Erro de localização
 class LocationErrorOccurred extends MapEvent {
   const LocationErrorOccurred({
@@ -112,4 +122,3 @@ class LocationErrorOccurred extends MapEvent {
   @override
   List<Object?> get props => [message];
 }
-
