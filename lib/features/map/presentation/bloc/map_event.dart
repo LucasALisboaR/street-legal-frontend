@@ -19,13 +19,27 @@ class UserPositionUpdated extends MapEvent {
   const UserPositionUpdated({
     required this.position,
     required this.heading,
+    required this.speedMetersPerSecond,
   });
 
   final MapPoint position;
   final double heading;
+  final double speedMetersPerSecond;
 
   @override
-  List<Object?> get props => [position, heading];
+  List<Object?> get props => [position, heading, speedMetersPerSecond];
+}
+
+/// Atualiza o heading do usuário (recebido do sensor do device)
+class UserHeadingUpdated extends MapEvent {
+  const UserHeadingUpdated({
+    required this.heading,
+  });
+
+  final double heading;
+
+  @override
+  List<Object?> get props => [heading];
 }
 
 /// Alterna entre modo Normal e modo Drive

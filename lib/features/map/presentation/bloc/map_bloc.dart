@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gearhead_br/features/map/data/services/heading_service.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
 import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
+import 'package:gearhead_br/features/map/domain/utils/navigation_metrics.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_event.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
 import 'package:geolocator/geolocator.dart';
@@ -16,12 +18,15 @@ import 'package:geolocator/geolocator.dart';
 class MapBloc extends Bloc<MapEvent, MapState> {
   MapBloc({
     required LocationService locationService,
+    required HeadingService headingService,
     required MapboxNavigationService navigationService,
   })  : _locationService = locationService,
+        _headingService = headingService,
         _navigationService = navigationService,
         super(MapState.initial()) {
     on<MapInitialized>(_onMapInitialized);
     on<UserPositionUpdated>(_onUserPositionUpdated);
+    on<UserHeadingUpdated>(_onUserHeadingUpdated);
     on<MapModeToggled>(_onMapModeToggled);
     on<NavigationStarted>(_onNavigationStarted);
     on<NavigationStopped>(_onNavigationStopped);
@@ -37,8 +42,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   }
 
   final LocationService _locationService;
+  final HeadingService _headingService;
   final MapboxNavigationService _navigationService;
   StreamSubscription<Position>? _locationSubscription;
+  StreamSubscription<double>? _deviceHeadingSubscription;
+
+  final HeadingSmoother _headingSmoother = HeadingSmoother();
+  DateTime? _lastDeviceHeadingAt;
+  double? _lastDeviceHeadingValue;
 
   /// Timer para verificar se o usuário está fora da rota
   Timer? _offRouteCheckTimer;
@@ -58,6 +69,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   
   /// Intervalo mínimo entre atualizações de posição (ms)
   static const int _positionThrottleMs = 300;
+
+  /// Intervalo mínimo entre updates de heading (ms)
+  static const int _headingThrottleMs = 120;
+
+  /// Tempo máximo para considerar heading do device como válido
+  static const Duration _deviceHeadingTimeout = Duration(seconds: 2);
   
   /// Intervalo mínimo entre cálculos de progresso de navegação (ms)
   static const int _progressThrottleMs = 500;
@@ -95,11 +112,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         latitude: position.latitude,
         longitude: position.longitude,
       ),
-      userHeading: position.heading.isFinite ? position.heading : 0.0,
+      userHeading: normalizeHeading(position.heading.isFinite ? position.heading : 0.0),
+      userHeadingSource: HeadingSource.gps,
+      userSpeedKmh: speedToKmh(position.speed),
     ));
 
     // Inicia o stream de localização
     _startLocationStream();
+    _startHeadingStream();
   }
 
   /// Inicia o monitoramento contínuo da localização
@@ -122,6 +142,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
                 longitude: position.longitude,
               ),
               heading: position.heading.isFinite ? position.heading : state.userHeading,
+              speedMetersPerSecond: position.speed.isFinite ? position.speed : 0.0,
             ));
           },
           onError: (error) {
@@ -130,6 +151,23 @@ class MapBloc extends Bloc<MapEvent, MapState> {
             ));
           },
         );
+  }
+
+  /// Inicia o monitoramento do heading do device (bússola)
+  void _startHeadingStream() {
+    _deviceHeadingSubscription?.cancel();
+    _deviceHeadingSubscription = _headingService.getHeadingStream().listen(
+      (heading) {
+        final now = DateTime.now();
+        if (_lastDeviceHeadingAt != null &&
+            now.difference(_lastDeviceHeadingAt!).inMilliseconds < _headingThrottleMs) {
+          return;
+        }
+        _lastDeviceHeadingAt = now;
+        add(UserHeadingUpdated(heading: heading));
+      },
+      onError: (_) {},
+    );
   }
 
   /// Atualiza a posição do usuário
@@ -148,9 +186,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     }
     _lastPositionUpdate = now;
 
+    final headingToUse = _resolveHeading(event.heading);
     emit(state.copyWith(
       userPosition: event.position,
-      userHeading: event.heading,
+      userHeading: headingToUse,
+      userHeadingSource: _resolveHeadingSource(),
+      userSpeedKmh: speedToKmh(event.speedMetersPerSecond),
       clearLocationError: true,
     ));
 
@@ -158,6 +199,20 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     if (state.isNavigating) {
       add(NavigationProgressUpdated(currentPosition: event.position));
     }
+  }
+
+  void _onUserHeadingUpdated(
+    UserHeadingUpdated event,
+    Emitter<MapState> emit,
+  ) {
+    final smoothedHeading = _headingSmoother.update(event.heading);
+    _lastDeviceHeadingValue = smoothedHeading;
+    _lastDeviceHeadingAt = DateTime.now();
+
+    emit(state.copyWith(
+      userHeading: smoothedHeading,
+      userHeadingSource: HeadingSource.device,
+    ));
   }
 
   /// Alterna entre modo Normal e Drive
@@ -519,7 +574,24 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   @override
   Future<void> close() {
     _locationSubscription?.cancel();
+    _deviceHeadingSubscription?.cancel();
     _stopOffRouteCheck();
     return super.close();
+  }
+
+  double _resolveHeading(double gpsHeading) {
+    if (_isDeviceHeadingFresh && _lastDeviceHeadingValue != null) {
+      return _lastDeviceHeadingValue!;
+    }
+    return normalizeHeading(gpsHeading);
+  }
+
+  HeadingSource _resolveHeadingSource() {
+    return _isDeviceHeadingFresh ? HeadingSource.device : HeadingSource.gps;
+  }
+
+  bool get _isDeviceHeadingFresh {
+    if (_lastDeviceHeadingAt == null) return false;
+    return DateTime.now().difference(_lastDeviceHeadingAt!) <= _deviceHeadingTimeout;
   }
 }

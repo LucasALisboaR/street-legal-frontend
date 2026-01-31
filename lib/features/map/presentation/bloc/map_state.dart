@@ -13,12 +13,18 @@ enum MapMode {
   drive,
 }
 
+enum HeadingSource {
+  device,
+  gps,
+}
+
 /// Estado do MapBloc
 class MapState extends Equatable {
   const MapState({
     this.mode = MapMode.normal,
     this.userPosition,
     this.userHeading = 0.0,
+    this.userHeadingSource = HeadingSource.gps,
     this.isLoadingLocation = true,
     this.locationError,
     this.selectedDestination,
@@ -28,6 +34,7 @@ class MapState extends Equatable {
     this.isFollowingUser = true,
     this.currentZoom = 15.0,
     this.speedLimitKmh,
+    this.userSpeedKmh,
   });
 
   /// Modo atual do mapa (Normal ou Drive)
@@ -38,6 +45,9 @@ class MapState extends Equatable {
 
   /// Direção do usuário em graus (0-360)
   final double userHeading;
+
+  /// Fonte do heading (device compass vs GPS course)
+  final HeadingSource userHeadingSource;
 
   /// Indica se está carregando a localização inicial
   final bool isLoadingLocation;
@@ -66,11 +76,15 @@ class MapState extends Equatable {
   /// Limite de velocidade atual (km/h) durante navegação
   final double? speedLimitKmh;
 
+  /// Velocidade atual do usuário (km/h)
+  final double? userSpeedKmh;
+
   @override
   List<Object?> get props => [
         mode,
         userPosition,
         userHeading,
+        userHeadingSource,
         isLoadingLocation,
         locationError,
         selectedDestination,
@@ -80,6 +94,7 @@ class MapState extends Equatable {
         isFollowingUser,
         currentZoom,
         speedLimitKmh,
+        userSpeedKmh,
       ];
 
   /// Cria uma cópia do estado com valores alterados
@@ -87,6 +102,7 @@ class MapState extends Equatable {
     MapMode? mode,
     MapPoint? userPosition,
     double? userHeading,
+    HeadingSource? userHeadingSource,
     bool? isLoadingLocation,
     String? locationError,
     NavigationDestination? selectedDestination,
@@ -96,6 +112,7 @@ class MapState extends Equatable {
     bool? isFollowingUser,
     double? currentZoom,
     double? speedLimitKmh,
+    double? userSpeedKmh,
     bool clearLocationError = false,
     bool clearSelectedDestination = false,
     bool clearActiveRoute = false,
@@ -106,6 +123,7 @@ class MapState extends Equatable {
       mode: mode ?? this.mode,
       userPosition: userPosition ?? this.userPosition,
       userHeading: userHeading ?? this.userHeading,
+      userHeadingSource: userHeadingSource ?? this.userHeadingSource,
       isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
       locationError: clearLocationError ? null : (locationError ?? this.locationError),
       selectedDestination: clearSelectedDestination
@@ -119,6 +137,7 @@ class MapState extends Equatable {
       isFollowingUser: isFollowingUser ?? this.isFollowingUser,
       currentZoom: currentZoom ?? this.currentZoom,
       speedLimitKmh: clearSpeedLimit ? null : (speedLimitKmh ?? this.speedLimitKmh),
+      userSpeedKmh: userSpeedKmh ?? this.userSpeedKmh,
     );
   }
 
