@@ -383,15 +383,22 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   }
 
   /// Desativa o follow quando o usuário interage com o mapa
+  /// 
+  /// IMPORTANTE: No modo drive, o follow sempre permanece ativo
   void _onCameraFollowDisabled(
     CameraFollowDisabled event,
     Emitter<MapState> emit,
   ) {
+    // No modo drive, não permite desativar o follow
+    if (state.mode == MapMode.drive) return;
+    
     if (!state.isFollowingUser) return;
     emit(state.copyWith(isFollowingUser: false));
   }
 
   /// Altera o zoom da câmera
+  /// 
+  /// IMPORTANTE: No modo drive, mantém o follow ativo
   void _onCameraZoomChanged(
     CameraZoomChanged event,
     Emitter<MapState> emit,
@@ -403,7 +410,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     emit(state.copyWith(
       currentZoom: newZoom,
-      isFollowingUser: false, // Desativa follow ao interagir manualmente
+      // No modo drive, mantém o follow ativo; no modo normal, desativa
+      isFollowingUser: state.mode == MapMode.drive ? true : false,
     ));
   }
 

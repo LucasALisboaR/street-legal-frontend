@@ -39,6 +39,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   // Throttle para câmera - evita chamadas excessivas
   DateTime _lastCameraUpdate = DateTime.now();
   static const _cameraThrottleMs = 250; // Máximo uma atualização a cada 250ms
+  static const _driveCameraThrottleMs = 150; // Mais responsivo no modo drive
 
   // Estilo do mapa (dark theme para combinar com o app)
   static const String _mapStyleUri = MapboxStyles.DARK;
@@ -48,7 +49,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   DateTime _lastUserInteraction = DateTime.fromMillisecondsSinceEpoch(0);
   static const _userInteractionThrottleMs = 400;
   static const _lookAheadMeters = 60.0;
-  static const _driveAnimationMs = 350;
+  static const _driveAnimationMs = 450; // Animação mais suave no modo drive
 
 
   @override
@@ -56,11 +57,16 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     super.didUpdateWidget(oldWidget);
 
     // Atualiza câmera se seguindo usuário (com throttle)
+    // No modo drive, sempre atualiza quando há mudança de posição ou heading
     if (widget.mapState.userPosition != null &&
-        widget.mapState.isFollowingUser &&
-        (widget.mapState.userPosition != oldWidget.mapState.userPosition ||
-         widget.mapState.userHeading != oldWidget.mapState.userHeading)) {
-      _updateCameraWithThrottle();
+        widget.mapState.isFollowingUser) {
+      final positionChanged = widget.mapState.userPosition != oldWidget.mapState.userPosition;
+      final headingChanged = widget.mapState.userHeading != oldWidget.mapState.userHeading;
+      
+      // No modo drive, atualiza mesmo com pequenas mudanças para movimento suave
+      if (positionChanged || headingChanged) {
+        _updateCameraWithThrottle();
+      }
     }
 
     // Atualiza a rota se mudou
@@ -222,13 +228,20 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
 
   /// Atualiza a câmera com throttle para evitar chamadas excessivas
   /// 
-  /// OTIMIZAÇÃO: Só permite uma atualização a cada 250ms no máximo.
+  /// OTIMIZAÇÃO: 
+  /// - Modo drive: atualização a cada 150ms (mais responsivo)
+  /// - Modo normal: atualização a cada 250ms
   /// Isso evita que o stream de GPS cause dezenas de animações por segundo.
   void _updateCameraWithThrottle() {
     final now = DateTime.now();
     final elapsed = now.difference(_lastCameraUpdate).inMilliseconds;
+    
+    // Usa throttle mais curto no modo drive para movimento mais suave
+    final throttleMs = widget.mapState.mode == MapMode.drive 
+        ? _driveCameraThrottleMs 
+        : _cameraThrottleMs;
 
-    if (elapsed < _cameraThrottleMs) {
+    if (elapsed < throttleMs) {
       // Ainda não passou tempo suficiente, ignora
       return;
     }
@@ -272,7 +285,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           pitch: widget.mapState.appropriateTilt, // Pitch alto para visão 3D "à frente"
         ),
         MapAnimationOptions(
-          duration: _driveAnimationMs, // Animação rápida e suave
+          duration: _driveAnimationMs, // Animação suave e contínua no modo drive
           startDelay: 0,
         ),
       );
@@ -402,16 +415,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       null,
     );
 
-    if (cameraOptions != null) {
-      _markProgrammaticCameraChange(700);
-      await _mapboxMap!.easeTo(
-        cameraOptions,
-        MapAnimationOptions(
-          duration: 700,
-          startDelay: 0,
-        ),
-      );
-    }
+    _markProgrammaticCameraChange(700);
+    await _mapboxMap!.easeTo(
+      cameraOptions,
+      MapAnimationOptions(
+        duration: 700,
+        startDelay: 0,
+      ),
+    );
   }
 
   /// Atualiza o modo da câmera (Normal vs Drive)
