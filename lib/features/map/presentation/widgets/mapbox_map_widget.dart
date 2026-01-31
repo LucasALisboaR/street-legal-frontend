@@ -397,7 +397,9 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       bounds,
       padding,
       0.0,
-      0.0,
+      null,
+      null,
+      null,
     );
 
     if (cameraOptions != null) {
