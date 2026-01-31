@@ -458,7 +458,7 @@ class StartNavigationButton extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'INICIAR NAVEGAÇÃO',
+                                'Ir',
                                 style: GoogleFonts.orbitron(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -598,7 +598,7 @@ class RoutePreviewPanel extends StatelessWidget {
                       onPressed: onStartNavigation,
                       icon: const Icon(Icons.navigation_rounded, size: 18),
                       label: Text(
-                        'Iniciar navegação',
+                        'Ir',
                         style: GoogleFonts.rajdhani(
                           fontWeight: FontWeight.w600,
                         ),
