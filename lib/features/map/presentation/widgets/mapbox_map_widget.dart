@@ -423,6 +423,8 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       padding,
       0.0,
       0.0,
+      0.0,
+      null,
     );
 
     if (cameraOptions != null) {

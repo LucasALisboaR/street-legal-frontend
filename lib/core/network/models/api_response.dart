@@ -6,10 +6,6 @@ class ApiResponse<T> {
     this.success = true,
   });
 
-  final T data;
-  final String? message;
-  final bool success;
-
   /// Cria ApiResponse a partir de uma resposta HTTP
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
@@ -21,6 +17,10 @@ class ApiResponse<T> {
       success: json['success'] as bool? ?? true,
     );
   }
+
+  final T data;
+  final String? message;
+  final bool success;
 
   Map<String, dynamic> toJson(Object? Function(T) toJsonT) {
     return {
