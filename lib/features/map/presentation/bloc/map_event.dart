@@ -101,6 +101,11 @@ class DestinationCleared extends MapEvent {
   const DestinationCleared();
 }
 
+/// Cancela o preview de rota
+class RoutePreviewCancelled extends MapEvent {
+  const RoutePreviewCancelled();
+}
+
 /// Erro de localização
 class LocationErrorOccurred extends MapEvent {
   const LocationErrorOccurred({
@@ -112,4 +117,3 @@ class LocationErrorOccurred extends MapEvent {
   @override
   List<Object?> get props => [message];
 }
-

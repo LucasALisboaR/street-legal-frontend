@@ -68,6 +68,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         });
       }
     }
+
+    // Preview: enquadra a rota inteira com transição suave
+    if (widget.mapState.mode == MapMode.preview &&
+        (widget.mapState.activeRoute != oldWidget.mapState.activeRoute ||
+            oldWidget.mapState.mode != MapMode.preview)) {
+      _animateCameraToRouteOverview();
+    }
   }
 
   /// Callback quando o mapa é criado
@@ -332,6 +339,56 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         lineOpacity: 0.9,
       ),
     );
+  }
+
+  /// Faz o overview da rota (camera transition do preview)
+  Future<void> _animateCameraToRouteOverview() async {
+    if (_mapboxMap == null || widget.mapState.activeRoute == null) return;
+
+    final route = widget.mapState.activeRoute!;
+    if (route.coordinates.isEmpty) return;
+
+    double minLat = route.coordinates.first.latitude;
+    double maxLat = route.coordinates.first.latitude;
+    double minLon = route.coordinates.first.longitude;
+    double maxLon = route.coordinates.first.longitude;
+
+    for (final point in route.coordinates) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLon) minLon = point.longitude;
+      if (point.longitude > maxLon) maxLon = point.longitude;
+    }
+
+    final bounds = CoordinateBounds(
+      southwest: Point(coordinates: Position(minLon, minLat)),
+      northeast: Point(coordinates: Position(maxLon, maxLat)),
+      infiniteBounds: false,
+    );
+
+    final padding = MbxEdgeInsets(
+      top: 140,
+      left: 48,
+      right: 48,
+      bottom: 240,
+    );
+
+    final cameraOptions = await _mapboxMap!.cameraForCoordinateBounds(
+      bounds,
+      padding,
+      0.0,
+      0.0,
+    );
+
+    if (cameraOptions != null) {
+      await _mapboxMap!.easeTo(
+        cameraOptions,
+        MapAnimationOptions(
+          duration: 700,
+          startDelay: 0,
+        ),
+      );
+    }
   }
 
   /// Atualiza o modo da câmera (Normal vs Drive)
