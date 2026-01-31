@@ -28,6 +28,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<NavigationProgressUpdated>(_onNavigationProgressUpdated);
     on<RouteRecalculationRequested>(_onRouteRecalculationRequested);
     on<CameraCenteredOnUser>(_onCameraCenteredOnUser);
+    on<CameraFollowDisabled>(_onCameraFollowDisabled);
     on<CameraZoomChanged>(_onCameraZoomChanged);
     on<DestinationSelected>(_onDestinationSelected);
     on<DestinationCleared>(_onDestinationCleared);
@@ -379,6 +380,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     Emitter<MapState> emit,
   ) {
     emit(state.copyWith(isFollowingUser: true));
+  }
+
+  /// Desativa o follow quando o usuário interage com o mapa
+  void _onCameraFollowDisabled(
+    CameraFollowDisabled event,
+    Emitter<MapState> emit,
+  ) {
+    if (!state.isFollowingUser) return;
+    emit(state.copyWith(isFollowingUser: false));
   }
 
   /// Altera o zoom da câmera

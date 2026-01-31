@@ -140,7 +140,7 @@ class MapState extends Equatable {
   /// Zoom adequado para o modo atual
   double get appropriateZoom {
     if (mode == MapMode.drive) {
-      return 17.0; // Mais perto durante navegação
+      return 18.2; // Mais perto durante navegação (terceira pessoa)
     }
     return 15.0; // Padrão para modo normal
   }
@@ -148,7 +148,7 @@ class MapState extends Equatable {
   /// Tilt (inclinação) adequado para o modo atual
   double get appropriateTilt {
     if (mode == MapMode.drive) {
-      return 60.0; // Visão 3D durante navegação
+      return 55.0; // Visão 3D durante navegação
     }
     return 0.0; // Visão de cima no modo normal
   }

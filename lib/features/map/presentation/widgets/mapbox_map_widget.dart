@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -19,10 +20,12 @@ class MapboxMapWidget extends StatefulWidget {
     super.key,
     required this.mapState,
     required this.onMapCreated,
+    this.onUserCameraInteraction,
   });
 
   final MapState mapState;
   final void Function(MapboxMap mapboxMap) onMapCreated;
+  final VoidCallback? onUserCameraInteraction;
 
   @override
   State<MapboxMapWidget> createState() => _MapboxMapWidgetState();
@@ -39,6 +42,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
 
   // Estilo do mapa (dark theme para combinar com o app)
   static const String _mapStyleUri = MapboxStyles.DARK;
+
+  // Controle de câmera programática vs interação do usuário
+  bool _isProgrammaticCameraChange = false;
+  DateTime _lastUserInteraction = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _userInteractionThrottleMs = 400;
+  static const _lookAheadMeters = 60.0;
+  static const _driveAnimationMs = 350;
 
 
   @override
@@ -67,6 +77,10 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           _animateCameraToUser();
         });
       }
+    }
+
+    if (widget.mapState.isFollowingUser && !oldWidget.mapState.isFollowingUser) {
+      _animateCameraToUser();
     }
 
     // Preview: enquadra a rota inteira com transição suave
@@ -193,6 +207,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   Future<void> _setInitialCamera(MapPoint position) async {
     if (_mapboxMap == null) return;
 
+    _markProgrammaticCameraChange(120);
     await _mapboxMap!.setCamera(
       CameraOptions(
         center: Point(
@@ -245,17 +260,19 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       // ═══════════════════════════════════════════════════════════════════════
       // Câmera mais próxima, com visão "à frente" do veículo
       // Padding inferior para posicionar o usuário mais para baixo (efeito Waze)
+      final target = _applyLookAhead(position, widget.mapState.userHeading);
+      _markProgrammaticCameraChange(_driveAnimationMs);
       await _mapboxMap!.easeTo(
         CameraOptions(
           center: Point(
-            coordinates: Position(position.longitude, position.latitude),
+            coordinates: Position(target.longitude, target.latitude),
           ),
-          zoom: 18.0, // Zoom maior para visão mais próxima
+          zoom: widget.mapState.appropriateZoom,
           bearing: widget.mapState.userHeading, // Rotação baseada na direção
-          pitch: 60.0, // Pitch alto para visão 3D "à frente"
+          pitch: widget.mapState.appropriateTilt, // Pitch alto para visão 3D "à frente"
         ),
         MapAnimationOptions(
-          duration: 300, // Animação rápida e suave
+          duration: _driveAnimationMs, // Animação rápida e suave
           startDelay: 0,
         ),
       );
@@ -267,6 +284,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       final bearing = 0.0;
       final pitch = 0.0;
 
+      _markProgrammaticCameraChange(250);
       await _mapboxMap!.easeTo(
         CameraOptions(
           center: Point(
@@ -300,11 +318,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     );
 
     if (animate) {
+      _markProgrammaticCameraChange(300);
       await _mapboxMap!.easeTo(
         cameraOptions,
         MapAnimationOptions(duration: 300),
       );
     } else {
+      _markProgrammaticCameraChange(120);
       await _mapboxMap!.setCamera(cameraOptions);
     }
   }
@@ -367,10 +387,10 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     );
 
     final padding = MbxEdgeInsets(
-      top: 140,
-      left: 48,
-      right: 48,
-      bottom: 240,
+      top: 180,
+      left: 56,
+      right: 56,
+      bottom: 320,
     );
 
     final cameraOptions = await _mapboxMap!.cameraForCoordinateBounds(
@@ -381,6 +401,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     );
 
     if (cameraOptions != null) {
+      _markProgrammaticCameraChange(700);
       await _mapboxMap!.easeTo(
         cameraOptions,
         MapAnimationOptions(
@@ -431,6 +452,48 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       ),
       styleUri: _mapStyleUri,
       onMapCreated: _onMapCreated,
+      onCameraChangeListener: _handleCameraChange,
+    );
+  }
+
+  void _handleCameraChange(CameraChangedEventData eventData) {
+    if (_isProgrammaticCameraChange) return;
+    if (widget.onUserCameraInteraction == null) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastUserInteraction).inMilliseconds < _userInteractionThrottleMs) {
+      return;
+    }
+    _lastUserInteraction = now;
+    widget.onUserCameraInteraction!.call();
+  }
+
+  void _markProgrammaticCameraChange(int durationMs) {
+    _isProgrammaticCameraChange = true;
+    Future.delayed(Duration(milliseconds: durationMs), () {
+      _isProgrammaticCameraChange = false;
+    });
+  }
+
+  MapPoint _applyLookAhead(MapPoint point, double bearingDegrees) {
+    final bearingRad = bearingDegrees * (pi / 180);
+    final distanceRatio = _lookAheadMeters / 6378137.0;
+    final latRad = point.latitude * (pi / 180);
+    final lonRad = point.longitude * (pi / 180);
+
+    final newLat = asin(
+      sin(latRad) * cos(distanceRatio) +
+          cos(latRad) * sin(distanceRatio) * cos(bearingRad),
+    );
+    final newLon = lonRad +
+        atan2(
+          sin(bearingRad) * sin(distanceRatio) * cos(latRad),
+          cos(distanceRatio) - sin(latRad) * sin(newLat),
+        );
+
+    return MapPoint(
+      latitude: newLat * (180 / pi),
+      longitude: newLon * (180 / pi),
     );
   }
 }

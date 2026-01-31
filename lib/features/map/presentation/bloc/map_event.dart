@@ -72,6 +72,11 @@ class CameraCenteredOnUser extends MapEvent {
   const CameraCenteredOnUser();
 }
 
+/// Desativa o modo de seguir usuário após interação manual
+class CameraFollowDisabled extends MapEvent {
+  const CameraFollowDisabled();
+}
+
 /// Atualiza o zoom da câmera
 class CameraZoomChanged extends MapEvent {
   const CameraZoomChanged({
