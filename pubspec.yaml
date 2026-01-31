@@ -32,6 +32,7 @@ dependencies:
   mapbox_maps_flutter: ^2.1.0
   geolocator: ^11.0.0
   permission_handler: ^11.1.0
+  flutter_compass: ^0.8.0
 
   # Firebase
   firebase_core: ^3.6.0
@@ -63,4 +64,3 @@ flutter:
 
   # Fontes são carregadas via Google Fonts
   # Para produção, considere adicionar fontes locais para melhor performance
-

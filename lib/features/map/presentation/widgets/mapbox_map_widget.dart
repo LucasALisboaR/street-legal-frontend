@@ -89,6 +89,10 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       _animateCameraToUser();
     }
 
+    if (widget.mapState.userHeadingSource != oldWidget.mapState.userHeadingSource) {
+      _updatePuckBearing();
+    }
+
     // Preview: enquadra a rota inteira com transição suave
     if (widget.mapState.mode == MapMode.preview &&
         (widget.mapState.activeRoute != oldWidget.mapState.activeRoute ||
@@ -196,6 +200,8 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         pulsingColor: AppColors.accent.value,
         pulsingMaxRadius: 35.0,
         showAccuracyRing: false, // Visual mais limpo
+        puckBearingEnabled: true,
+        puckBearing: _currentPuckBearing(),
         locationPuck: LocationPuck(
           locationPuck2D: LocationPuck2D(
             // Usa a imagem de seta customizada
@@ -207,6 +213,24 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> _updatePuckBearing() async {
+    if (_mapboxMap == null) return;
+
+    await _mapboxMap!.location.updateSettings(
+      LocationComponentSettings(
+        enabled: true,
+        puckBearingEnabled: true,
+        puckBearing: _currentPuckBearing(),
+      ),
+    );
+  }
+
+  PuckBearing _currentPuckBearing() {
+    return widget.mapState.userHeadingSource == HeadingSource.device
+        ? PuckBearing.HEADING
+        : PuckBearing.COURSE;
   }
 
   /// Define a câmera inicial (sem animação)

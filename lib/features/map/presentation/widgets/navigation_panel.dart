@@ -35,7 +35,11 @@ class NavigationPanel extends StatelessWidget {
         const Spacer(),
 
         // Painel inferior - Informações da viagem
-        _buildTripInfoPanel(navState),
+        _buildTripInfoPanel(
+          navState,
+          currentSpeedKmh: mapState.userSpeedKmh,
+          speedLimitKmh: mapState.speedLimitKmh,
+        ),
       ],
     );
   }
@@ -164,18 +168,32 @@ class NavigationPanel extends StatelessWidget {
 
   /// Painel com informações da viagem
   /// Estilo Waze: posicionado no bottom esquerdo, mais próximo do bottom
-  Widget _buildTripInfoPanel(nav_entities.NavigationState navState) {
+  Widget _buildTripInfoPanel(
+    nav_entities.NavigationState navState, {
+    required double? currentSpeedKmh,
+    required double? speedLimitKmh,
+  }) {
     final route = navState.route;
 
     return SafeArea(
       top: false,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Painel de informações (esquerda)
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(left: 16, bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                CurrentSpeedBadge(speedKmh: currentSpeedKmh),
+                SpeedLimitBadge(speedLimitKmh: speedLimitKmh),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Painel de informações (tempo/distância)
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.darkGrey.withOpacity(0.95),
@@ -215,14 +233,10 @@ class NavigationPanel extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-
-          // Botão de parar navegação (direita)
-          Container(
-            margin: const EdgeInsets.only(right: 16, bottom: 16),
-            child: _buildStopButton(),
-          ),
-        ],
+            const SizedBox(height: 12),
+            _buildStopButton(),
+          ],
+        ),
       ),
     );
   }
@@ -270,11 +284,11 @@ class NavigationPanel extends StatelessWidget {
     return GestureDetector(
       onTap: onStopNavigation,
       child: Container(
-        width: 48,
-        height: 48,
+        width: double.infinity,
+        height: 52,
         decoration: BoxDecoration(
           color: AppColors.error,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: AppColors.error.withOpacity(0.4),
@@ -283,10 +297,24 @@ class NavigationPanel extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(
-          Icons.close_rounded,
-          color: AppColors.white,
-          size: 24,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.close_rounded,
+              color: AppColors.white,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Cancelar',
+              style: GoogleFonts.rajdhani(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -340,6 +368,56 @@ class SpeedLimitBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             'Limite: $speedText km/h',
+            style: GoogleFonts.rajdhani(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Badge de velocidade atual exibido no modo Drive
+class CurrentSpeedBadge extends StatelessWidget {
+  const CurrentSpeedBadge({
+    super.key,
+    required this.speedKmh,
+  });
+
+  final double? speedKmh;
+
+  @override
+  Widget build(BuildContext context) {
+    final speedText = speedKmh != null ? speedKmh!.round().toString() : '--';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.darkGrey.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.mediumGrey),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.speed,
+            color: AppColors.accent,
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$speedText km/h',
             style: GoogleFonts.rajdhani(
               fontSize: 12,
               fontWeight: FontWeight.w600,
