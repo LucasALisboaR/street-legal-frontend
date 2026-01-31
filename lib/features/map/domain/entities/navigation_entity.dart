@@ -60,6 +60,7 @@ class NavigationRoute extends Equatable {
     required this.distance,
     required this.duration,
     required this.instructions,
+    this.speedLimitsKmh = const [],
     this.summary,
   });
 
@@ -75,11 +76,22 @@ class NavigationRoute extends Equatable {
   /// Lista de instruções de navegação
   final List<NavigationInstruction> instructions;
 
+  /// Lista de limites de velocidade (km/h) por segmento da rota
+  /// Pode conter null quando o dado não está disponível.
+  final List<double?> speedLimitsKmh;
+
   /// Resumo da rota (ex: "Via BR-116")
   final String? summary;
 
   @override
-  List<Object?> get props => [coordinates, distance, duration, instructions, summary];
+  List<Object?> get props => [
+        coordinates,
+        distance,
+        duration,
+        instructions,
+        speedLimitsKmh,
+        summary,
+      ];
 
   /// Distância formatada (km ou m)
   String get formattedDistance {
@@ -167,4 +179,3 @@ class NavigationDestination extends Equatable {
   @override
   List<Object?> get props => [point, name, address];
 }
-
