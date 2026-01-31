@@ -40,6 +40,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   // Estilo do mapa (dark theme para combinar com o app)
   static const String _mapStyleUri = MapboxStyles.DARK;
 
+
   @override
   void didUpdateWidget(covariant MapboxMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -60,6 +61,12 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     // Atualiza modo da câmera (gestos, bearing, etc)
     if (widget.mapState.mode != oldWidget.mapState.mode) {
       _updateCameraMode();
+      // Transição suave entre modos
+      if (widget.mapState.userPosition != null && widget.mapState.isFollowingUser) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _animateCameraToUser();
+        });
+      }
     }
   }
 
@@ -213,35 +220,61 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   /// OTIMIZAÇÃO: Usa easeTo em vez de flyTo
   /// - easeTo: animação linear simples, mais leve
   /// - flyTo: animação com zoom out/in, mais pesada
+  /// 
+  /// MODO DRIVE (estilo Waze):
+  /// - Zoom maior (18.0)
+  /// - Pitch de 60° para visão "à frente"
+  /// - Bearing baseado na direção do movimento
+  /// - Câmera posicionada mais para baixo (não centralizada)
   Future<void> _animateCameraToUser() async {
     if (_mapboxMap == null || widget.mapState.userPosition == null) return;
 
     final position = widget.mapState.userPosition!;
     final isDriveMode = widget.mapState.mode == MapMode.drive;
 
-    // Configurações de câmera baseadas no modo
-    final zoom = widget.mapState.currentZoom;
-    final bearing = isDriveMode ? widget.mapState.userHeading : 0.0;
-    final pitch = widget.mapState.appropriateTilt;
-
-    // Duração da animação: mais curta no modo normal, um pouco mais longa no drive
-    final duration = isDriveMode ? 350 : 250;
-
-    // easeTo é mais leve que flyTo para atualizações frequentes
-    await _mapboxMap!.easeTo(
-      CameraOptions(
-        center: Point(
-          coordinates: Position(position.longitude, position.latitude),
+    if (isDriveMode) {
+      // ═══════════════════════════════════════════════════════════════════════
+      // MODO DRIVE - ESTILO WAZE
+      // ═══════════════════════════════════════════════════════════════════════
+      // Câmera mais próxima, com visão "à frente" do veículo
+      // Padding inferior para posicionar o usuário mais para baixo (efeito Waze)
+      await _mapboxMap!.easeTo(
+        CameraOptions(
+          center: Point(
+            coordinates: Position(position.longitude, position.latitude),
+          ),
+          zoom: 18.0, // Zoom maior para visão mais próxima
+          bearing: widget.mapState.userHeading, // Rotação baseada na direção
+          pitch: 60.0, // Pitch alto para visão 3D "à frente"
         ),
-        zoom: zoom,
-        bearing: bearing,
-        pitch: pitch,
-      ),
-      MapAnimationOptions(
-        duration: duration,
-        startDelay: 0,
-      ),
-    );
+        MapAnimationOptions(
+          duration: 300, // Animação rápida e suave
+          startDelay: 0,
+        ),
+      );
+    } else {
+      // ═══════════════════════════════════════════════════════════════════════
+      // MODO NORMAL
+      // ═══════════════════════════════════════════════════════════════════════
+      final zoom = widget.mapState.currentZoom;
+      final bearing = 0.0;
+      final pitch = 0.0;
+
+      await _mapboxMap!.easeTo(
+        CameraOptions(
+          center: Point(
+            coordinates: Position(position.longitude, position.latitude),
+          ),
+          zoom: zoom,
+          bearing: bearing,
+          pitch: pitch,
+        ),
+        MapAnimationOptions(
+          duration: 250,
+          startDelay: 0,
+        ),
+      );
+    }
   }
 
   /// Move a câmera para uma posição (usado para ações manuais)
@@ -269,7 +302,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     }
   }
 
-  /// Atualiza a layer da rota
+  /// Atualiza a layer da rota (ativa)
   Future<void> _updateRouteLayer() async {
     if (_polylineAnnotationManager == null) return;
 

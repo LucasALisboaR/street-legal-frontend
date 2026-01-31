@@ -205,7 +205,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       mode: MapMode.drive,
       isCalculatingRoute: false,
       activeRoute: route,
-      currentZoom: 17.0, // Zoom mais próximo durante navegação
+      currentZoom: 18.0, // Zoom mais próximo durante navegação (estilo Waze)
       navigationState: NavigationState(
         route: route,
         currentPosition: state.userPosition!,

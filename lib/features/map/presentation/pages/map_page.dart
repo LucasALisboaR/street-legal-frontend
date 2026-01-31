@@ -116,7 +116,7 @@ class _MapPageContentState extends State<_MapPageContent> {
               // Botões de controle do mapa
               _buildMapControls(context, state),
 
-              // Botão de iniciar navegação (quando há destino selecionado)
+              // Botões de navegação (iniciar e cancelar) quando há destino selecionado
               if (state.hasDestination && !state.isNavigating)
                 Positioned(
                   left: 0,
@@ -131,6 +131,9 @@ class _MapPageContentState extends State<_MapPageContent> {
                               destination: state.selectedDestination!,
                             ),
                           );
+                    },
+                    onCancel: () {
+                      context.read<MapBloc>().add(const DestinationCleared());
                     },
                   ),
                 ),
@@ -318,10 +321,24 @@ class _MapPageContentState extends State<_MapPageContent> {
   }
 
   /// Botões de controle do mapa (zoom, localização)
+  /// No modo drive, os controles são removidos (estilo Waze)
+  /// Ajusta o padding quando o botão CTA está visível
   Widget _buildMapControls(BuildContext context, MapState state) {
+    // No modo drive, não exibe controles (estilo Waze)
+    if (state.isNavigating) {
+      return const SizedBox.shrink();
+    }
+
+    // Calcula o offset do bottom baseado no estado
+    // - Preview (botão CTA visível): mais acima para evitar sobreposição
+    //   Botão CTA tem ~80px altura + 100px margin bottom + safe area = ~240px
+    // - Normal: padrão (120)
+    final hasCTA = state.hasDestination && !state.isNavigating;
+    final bottomOffset = hasCTA ? 240.0 : 120.0;
+
     return Positioned(
       right: 16,
-      bottom: state.isNavigating ? 200 : 100,
+      bottom: bottomOffset,
       child: Column(
         children: [
           MapControlButton(
