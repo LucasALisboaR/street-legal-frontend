@@ -18,20 +18,22 @@ class LocationService {
   /// Solicita permissão de localização
   /// Retorna true se a permissão foi concedida, false caso contrário
   Future<bool> requestLocationPermission() async {
-    // Verifica se já tem permissão
-    if (await hasLocationPermission()) {
+    // Primeiro verifica permissão via geolocator, que integra melhor com o request
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
       return true;
     }
 
-    // Verifica se o serviço de localização está habilitado
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
+    // Solicita permissão do sistema (iOS mostrará o prompt apropriado)
+    permission = await Geolocator.requestPermission();
+
+    if (permission == LocationPermission.deniedForever) {
+      // Usuário negou permanentemente
       return false;
     }
 
-    // Solicita permissão
-    final status = await Permission.location.request();
-    return status.isGranted;
+    return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
   }
 
   /// Verifica se o serviço de localização está habilitado
@@ -121,13 +123,14 @@ class LocationService {
   /// Verifica e solicita permissões necessárias
   /// Retorna true se tudo estiver ok, false caso contrário
   Future<bool> checkAndRequestPermissions() async {
-    // Verifica se o serviço está habilitado
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return false;
-    }
+    // Primeiro solicita/verifica permissão
+    final granted = await requestLocationPermission();
+    if (!granted) return false;
 
-    // Verifica e solicita permissão
-    return await requestLocationPermission();
+    // Então verifica se o serviço de localização do dispositivo está habilitado
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return false;
+
+    return true;
   }
 }

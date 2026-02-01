@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -19,10 +20,12 @@ class MapboxMapWidget extends StatefulWidget {
     super.key,
     required this.mapState,
     required this.onMapCreated,
+    this.onUserCameraInteraction,
   });
 
   final MapState mapState;
   final void Function(MapboxMap mapboxMap) onMapCreated;
+  final VoidCallback? onUserCameraInteraction;
 
   @override
   State<MapboxMapWidget> createState() => _MapboxMapWidgetState();
@@ -36,20 +39,34 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   // Throttle para câmera - evita chamadas excessivas
   DateTime _lastCameraUpdate = DateTime.now();
   static const _cameraThrottleMs = 250; // Máximo uma atualização a cada 250ms
+  static const _driveCameraThrottleMs = 150; // Mais responsivo no modo drive
 
   // Estilo do mapa (dark theme para combinar com o app)
   static const String _mapStyleUri = MapboxStyles.DARK;
+
+  // Controle de câmera programática vs interação do usuário
+  bool _isProgrammaticCameraChange = false;
+  DateTime _lastUserInteraction = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _userInteractionThrottleMs = 400;
+  static const _lookAheadMeters = 60.0;
+  static const _driveAnimationMs = 450; // Animação mais suave no modo drive
+
 
   @override
   void didUpdateWidget(covariant MapboxMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     // Atualiza câmera se seguindo usuário (com throttle)
+    // No modo drive, sempre atualiza quando há mudança de posição ou heading
     if (widget.mapState.userPosition != null &&
-        widget.mapState.isFollowingUser &&
-        (widget.mapState.userPosition != oldWidget.mapState.userPosition ||
-         widget.mapState.userHeading != oldWidget.mapState.userHeading)) {
-      _updateCameraWithThrottle();
+        widget.mapState.isFollowingUser) {
+      final positionChanged = widget.mapState.userPosition != oldWidget.mapState.userPosition;
+      final headingChanged = widget.mapState.userHeading != oldWidget.mapState.userHeading;
+      
+      // No modo drive, atualiza mesmo com pequenas mudanças para movimento suave
+      if (positionChanged || headingChanged) {
+        _updateCameraWithThrottle();
+      }
     }
 
     // Atualiza a rota se mudou
@@ -60,6 +77,23 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     // Atualiza modo da câmera (gestos, bearing, etc)
     if (widget.mapState.mode != oldWidget.mapState.mode) {
       _updateCameraMode();
+      // Transição suave entre modos
+      if (widget.mapState.userPosition != null && widget.mapState.isFollowingUser) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _animateCameraToUser();
+        });
+      }
+    }
+
+    if (widget.mapState.isFollowingUser && !oldWidget.mapState.isFollowingUser) {
+      _animateCameraToUser();
+    }
+
+    // Preview: enquadra a rota inteira com transição suave
+    if (widget.mapState.mode == MapMode.preview &&
+        (widget.mapState.activeRoute != oldWidget.mapState.activeRoute ||
+            oldWidget.mapState.mode != MapMode.preview)) {
+      _animateCameraToRouteOverview();
     }
   }
 
@@ -179,6 +213,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   Future<void> _setInitialCamera(MapPoint position) async {
     if (_mapboxMap == null) return;
 
+    _markProgrammaticCameraChange(120);
     await _mapboxMap!.setCamera(
       CameraOptions(
         center: Point(
@@ -193,13 +228,20 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
 
   /// Atualiza a câmera com throttle para evitar chamadas excessivas
   /// 
-  /// OTIMIZAÇÃO: Só permite uma atualização a cada 250ms no máximo.
+  /// OTIMIZAÇÃO: 
+  /// - Modo drive: atualização a cada 150ms (mais responsivo)
+  /// - Modo normal: atualização a cada 250ms
   /// Isso evita que o stream de GPS cause dezenas de animações por segundo.
   void _updateCameraWithThrottle() {
     final now = DateTime.now();
     final elapsed = now.difference(_lastCameraUpdate).inMilliseconds;
+    
+    // Usa throttle mais curto no modo drive para movimento mais suave
+    final throttleMs = widget.mapState.mode == MapMode.drive 
+        ? _driveCameraThrottleMs 
+        : _cameraThrottleMs;
 
-    if (elapsed < _cameraThrottleMs) {
+    if (elapsed < throttleMs) {
       // Ainda não passou tempo suficiente, ignora
       return;
     }
@@ -213,35 +255,64 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   /// OTIMIZAÇÃO: Usa easeTo em vez de flyTo
   /// - easeTo: animação linear simples, mais leve
   /// - flyTo: animação com zoom out/in, mais pesada
+  /// 
+  /// MODO DRIVE (estilo Waze):
+  /// - Zoom maior (18.0)
+  /// - Pitch de 60° para visão "à frente"
+  /// - Bearing baseado na direção do movimento
+  /// - Câmera posicionada mais para baixo (não centralizada)
   Future<void> _animateCameraToUser() async {
     if (_mapboxMap == null || widget.mapState.userPosition == null) return;
 
     final position = widget.mapState.userPosition!;
     final isDriveMode = widget.mapState.mode == MapMode.drive;
 
-    // Configurações de câmera baseadas no modo
-    final zoom = widget.mapState.currentZoom;
-    final bearing = isDriveMode ? widget.mapState.userHeading : 0.0;
-    final pitch = widget.mapState.appropriateTilt;
-
-    // Duração da animação: mais curta no modo normal, um pouco mais longa no drive
-    final duration = isDriveMode ? 350 : 250;
-
-    // easeTo é mais leve que flyTo para atualizações frequentes
-    await _mapboxMap!.easeTo(
-      CameraOptions(
-        center: Point(
-          coordinates: Position(position.longitude, position.latitude),
+    if (isDriveMode) {
+      // ═══════════════════════════════════════════════════════════════════════
+      // MODO DRIVE - ESTILO WAZE
+      // ═══════════════════════════════════════════════════════════════════════
+      // Câmera mais próxima, com visão "à frente" do veículo
+      // Padding inferior para posicionar o usuário mais para baixo (efeito Waze)
+      final target = _applyLookAhead(position, widget.mapState.userHeading);
+      _markProgrammaticCameraChange(_driveAnimationMs);
+      await _mapboxMap!.easeTo(
+        CameraOptions(
+          center: Point(
+            coordinates: Position(target.longitude, target.latitude),
+          ),
+          zoom: widget.mapState.appropriateZoom,
+          bearing: widget.mapState.userHeading, // Rotação baseada na direção
+          pitch: widget.mapState.appropriateTilt, // Pitch alto para visão 3D "à frente"
         ),
-        zoom: zoom,
-        bearing: bearing,
-        pitch: pitch,
-      ),
-      MapAnimationOptions(
-        duration: duration,
-        startDelay: 0,
-      ),
-    );
+        MapAnimationOptions(
+          duration: _driveAnimationMs, // Animação suave e contínua no modo drive
+          startDelay: 0,
+        ),
+      );
+    } else {
+      // ═══════════════════════════════════════════════════════════════════════
+      // MODO NORMAL
+      // ═══════════════════════════════════════════════════════════════════════
+      final zoom = widget.mapState.currentZoom;
+      final bearing = 0.0;
+      final pitch = 0.0;
+
+      _markProgrammaticCameraChange(250);
+      await _mapboxMap!.easeTo(
+        CameraOptions(
+          center: Point(
+            coordinates: Position(position.longitude, position.latitude),
+          ),
+          zoom: zoom,
+          bearing: bearing,
+          pitch: pitch,
+        ),
+        MapAnimationOptions(
+          duration: 250,
+          startDelay: 0,
+        ),
+      );
+    }
   }
 
   /// Move a câmera para uma posição (usado para ações manuais)
@@ -260,16 +331,18 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     );
 
     if (animate) {
+      _markProgrammaticCameraChange(300);
       await _mapboxMap!.easeTo(
         cameraOptions,
         MapAnimationOptions(duration: 300),
       );
     } else {
+      _markProgrammaticCameraChange(120);
       await _mapboxMap!.setCamera(cameraOptions);
     }
   }
 
-  /// Atualiza a layer da rota
+  /// Atualiza a layer da rota (ativa)
   Future<void> _updateRouteLayer() async {
     if (_polylineAnnotationManager == null) return;
 
@@ -297,6 +370,57 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         lineColor: AppColors.accent.value,
         lineWidth: 6.0,
         lineOpacity: 0.9,
+      ),
+    );
+  }
+
+  /// Faz o overview da rota (camera transition do preview)
+  Future<void> _animateCameraToRouteOverview() async {
+    if (_mapboxMap == null || widget.mapState.activeRoute == null) return;
+
+    final route = widget.mapState.activeRoute!;
+    if (route.coordinates.isEmpty) return;
+
+    double minLat = route.coordinates.first.latitude;
+    double maxLat = route.coordinates.first.latitude;
+    double minLon = route.coordinates.first.longitude;
+    double maxLon = route.coordinates.first.longitude;
+
+    for (final point in route.coordinates) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLon) minLon = point.longitude;
+      if (point.longitude > maxLon) maxLon = point.longitude;
+    }
+
+    final bounds = CoordinateBounds(
+      southwest: Point(coordinates: Position(minLon, minLat)),
+      northeast: Point(coordinates: Position(maxLon, maxLat)),
+      infiniteBounds: false,
+    );
+
+    final padding = MbxEdgeInsets(
+      top: 180,
+      left: 56,
+      right: 56,
+      bottom: 320,
+    );
+
+    final cameraOptions = await _mapboxMap!.cameraForCoordinateBounds(
+      bounds,
+      padding,
+      0.0,
+      null,
+      null,
+      null,
+    );
+
+    _markProgrammaticCameraChange(700);
+    await _mapboxMap!.easeTo(
+      cameraOptions,
+      MapAnimationOptions(
+        duration: 700,
+        startDelay: 0,
       ),
     );
   }
@@ -341,6 +465,48 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       ),
       styleUri: _mapStyleUri,
       onMapCreated: _onMapCreated,
+      onCameraChangeListener: _handleCameraChange,
+    );
+  }
+
+  void _handleCameraChange(CameraChangedEventData eventData) {
+    if (_isProgrammaticCameraChange) return;
+    if (widget.onUserCameraInteraction == null) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastUserInteraction).inMilliseconds < _userInteractionThrottleMs) {
+      return;
+    }
+    _lastUserInteraction = now;
+    widget.onUserCameraInteraction!.call();
+  }
+
+  void _markProgrammaticCameraChange(int durationMs) {
+    _isProgrammaticCameraChange = true;
+    Future.delayed(Duration(milliseconds: durationMs), () {
+      _isProgrammaticCameraChange = false;
+    });
+  }
+
+  MapPoint _applyLookAhead(MapPoint point, double bearingDegrees) {
+    final bearingRad = bearingDegrees * (pi / 180);
+    final distanceRatio = _lookAheadMeters / 6378137.0;
+    final latRad = point.latitude * (pi / 180);
+    final lonRad = point.longitude * (pi / 180);
+
+    final newLat = asin(
+      sin(latRad) * cos(distanceRatio) +
+          cos(latRad) * sin(distanceRatio) * cos(bearingRad),
+    );
+    final newLon = lonRad +
+        atan2(
+          sin(bearingRad) * sin(distanceRatio) * cos(latRad),
+          cos(distanceRatio) - sin(latRad) * sin(newLat),
+        );
+
+    return MapPoint(
+      latitude: newLat * (180 / pi),
+      longitude: newLon * (180 / pi),
     );
   }
 }

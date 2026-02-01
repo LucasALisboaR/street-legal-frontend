@@ -28,9 +28,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<NavigationProgressUpdated>(_onNavigationProgressUpdated);
     on<RouteRecalculationRequested>(_onRouteRecalculationRequested);
     on<CameraCenteredOnUser>(_onCameraCenteredOnUser);
+    on<CameraFollowDisabled>(_onCameraFollowDisabled);
     on<CameraZoomChanged>(_onCameraZoomChanged);
     on<DestinationSelected>(_onDestinationSelected);
     on<DestinationCleared>(_onDestinationCleared);
+    on<RoutePreviewCancelled>(_onRoutePreviewCancelled);
     on<LocationErrorOccurred>(_onLocationErrorOccurred);
   }
 
@@ -181,16 +183,26 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   ) async {
     if (state.userPosition == null) return;
 
+    final isPreviewRoute = state.mode == MapMode.preview &&
+        state.activeRoute != null &&
+        state.selectedDestination == event.destination;
+
     emit(state.copyWith(
-      isCalculatingRoute: true,
+      isCalculatingRoute: !isPreviewRoute,
       selectedDestination: event.destination,
     ));
 
-    // Calcula a rota
-    final route = await _navigationService.getRoute(
-      origin: state.userPosition!,
-      destination: event.destination.point,
-    );
+    final NavigationRoute? route;
+
+    if (isPreviewRoute) {
+      route = state.activeRoute;
+    } else {
+      // Calcula a rota
+      route = await _navigationService.getRoute(
+        origin: state.userPosition!,
+        destination: event.destination.point,
+      );
+    }
 
     if (route == null) {
       emit(state.copyWith(
@@ -205,7 +217,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       mode: MapMode.drive,
       isCalculatingRoute: false,
       activeRoute: route,
-      currentZoom: 17.0, // Zoom mais próximo durante navegação
+      currentZoom: 18.0, // Zoom mais próximo durante navegação (estilo Waze)
+      isFollowingUser: true,
+      speedLimitKmh: route.speedLimitsKmh.isNotEmpty ? route.speedLimitsKmh.first : null,
       navigationState: NavigationState(
         route: route,
         currentPosition: state.userPosition!,
@@ -231,6 +245,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(state.copyWith(
       mode: MapMode.normal,
       currentZoom: 15.0,
+      isFollowingUser: true,
+      clearSpeedLimit: true,
       clearActiveRoute: true,
       clearNavigationState: true,
       clearSelectedDestination: true,
@@ -302,6 +318,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       );
     }
 
+    // Limite de velocidade vem das annotations da Directions API (km/h).
+    final speedLimit = route.speedLimitsKmh.isNotEmpty && segmentIndex < route.speedLimitsKmh.length
+        ? route.speedLimitsKmh[segmentIndex]
+        : null;
+
     emit(state.copyWith(
       navigationState: NavigationState(
         route: route,
@@ -310,6 +331,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         distanceToNextStep: distanceToNext,
         isOffRoute: isOffRoute,
       ),
+      speedLimitKmh: speedLimit,
     ));
   }
 
@@ -338,6 +360,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(state.copyWith(
       isCalculatingRoute: false,
       activeRoute: newRoute,
+      speedLimitKmh:
+          newRoute.speedLimitsKmh.isNotEmpty ? newRoute.speedLimitsKmh.first : null,
       navigationState: NavigationState(
         route: newRoute,
         currentPosition: state.userPosition!,
@@ -358,7 +382,23 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(state.copyWith(isFollowingUser: true));
   }
 
+  /// Desativa o follow quando o usuário interage com o mapa
+  /// 
+  /// IMPORTANTE: No modo drive, o follow sempre permanece ativo
+  void _onCameraFollowDisabled(
+    CameraFollowDisabled event,
+    Emitter<MapState> emit,
+  ) {
+    // No modo drive, não permite desativar o follow
+    if (state.mode == MapMode.drive) return;
+    
+    if (!state.isFollowingUser) return;
+    emit(state.copyWith(isFollowingUser: false));
+  }
+
   /// Altera o zoom da câmera
+  /// 
+  /// IMPORTANTE: No modo drive, mantém o follow ativo
   void _onCameraZoomChanged(
     CameraZoomChanged event,
     Emitter<MapState> emit,
@@ -370,16 +410,51 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     emit(state.copyWith(
       currentZoom: newZoom,
-      isFollowingUser: false, // Desativa follow ao interagir manualmente
+      // No modo drive, mantém o follow ativo; no modo normal, desativa
+      isFollowingUser: state.mode == MapMode.drive ? true : false,
     ));
   }
 
   /// Seleciona um destino
-  void _onDestinationSelected(
+  Future<void> _onDestinationSelected(
     DestinationSelected event,
     Emitter<MapState> emit,
-  ) {
-    emit(state.copyWith(selectedDestination: event.destination));
+  ) async {
+    if (state.userPosition == null) {
+      emit(state.copyWith(
+        locationError: 'Localização indisponível para calcular rota.',
+      ));
+      return;
+    }
+
+    emit(state.copyWith(
+      selectedDestination: event.destination,
+      isCalculatingRoute: true,
+      mode: MapMode.normal,
+      clearActiveRoute: true,
+      clearNavigationState: true,
+      clearSpeedLimit: true,
+    ));
+
+    final route = await _navigationService.getRoute(
+      origin: state.userPosition!,
+      destination: event.destination.point,
+    );
+
+    if (route == null) {
+      emit(state.copyWith(
+        isCalculatingRoute: false,
+        locationError: 'Não foi possível calcular a rota. Tente novamente.',
+      ));
+      return;
+    }
+
+    emit(state.copyWith(
+      mode: MapMode.preview,
+      isCalculatingRoute: false,
+      activeRoute: route,
+      isFollowingUser: false,
+    ));
   }
 
   /// Limpa o destino selecionado
@@ -387,7 +462,31 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     DestinationCleared event,
     Emitter<MapState> emit,
   ) {
-    emit(state.copyWith(clearSelectedDestination: true));
+    emit(state.copyWith(
+      mode: MapMode.normal,
+      isCalculatingRoute: false,
+      isFollowingUser: true,
+      clearSpeedLimit: true,
+      clearActiveRoute: true,
+      clearNavigationState: true,
+      clearSelectedDestination: true,
+    ));
+  }
+
+  /// Cancela o preview de rota e volta ao modo normal
+  void _onRoutePreviewCancelled(
+    RoutePreviewCancelled event,
+    Emitter<MapState> emit,
+  ) {
+    emit(state.copyWith(
+      mode: MapMode.normal,
+      isCalculatingRoute: false,
+      isFollowingUser: true,
+      clearSpeedLimit: true,
+      clearActiveRoute: true,
+      clearNavigationState: true,
+      clearSelectedDestination: true,
+    ));
   }
 
   /// Trata erro de localização

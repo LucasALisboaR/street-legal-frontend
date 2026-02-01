@@ -36,6 +36,8 @@ class MapboxNavigationService {
           'language': 'pt-BR',
           'voice_instructions': 'true',
           'banner_instructions': 'true',
+          // Traz anotação de velocidade máxima para o badge de limite.
+          'annotations': 'maxspeed',
         },
       );
 
@@ -198,9 +200,11 @@ class MapboxNavigationService {
 
     final legs = routeData['legs'] as List;
     final instructions = <NavigationInstruction>[];
+    final speedLimits = <double?>[];
 
     for (final leg in legs) {
-      final steps = (leg as Map<String, dynamic>)['steps'] as List;
+      final legData = leg as Map<String, dynamic>;
+      final steps = legData['steps'] as List;
       for (final step in steps) {
         final stepData = step as Map<String, dynamic>;
         final maneuver = stepData['maneuver'] as Map<String, dynamic>;
@@ -213,6 +217,15 @@ class MapboxNavigationService {
           streetName: stepData['name'] as String?,
         ));
       }
+
+      // Extrai anotação de velocidade máxima (se disponível).
+      final annotation = legData['annotation'] as Map<String, dynamic>?;
+      final maxspeed = annotation?['maxspeed'] as List?;
+      if (maxspeed != null) {
+        for (final entry in maxspeed) {
+          speedLimits.add(_parseSpeedLimitToKmh(entry));
+        }
+      }
     }
 
     return NavigationRoute(
@@ -220,8 +233,30 @@ class MapboxNavigationService {
       distance: (routeData['distance'] as num).toDouble(),
       duration: (routeData['duration'] as num).toDouble(),
       instructions: instructions,
+      speedLimitsKmh: speedLimits,
       summary: routeData['weight_name'] as String?,
     );
+  }
+
+  /// Converte o valor de velocidade máxima retornado pela API para km/h.
+  double? _parseSpeedLimitToKmh(dynamic entry) {
+    if (entry == null) return null;
+    if (entry is num) {
+      return entry.toDouble();
+    }
+    if (entry is Map<String, dynamic>) {
+      final speed = entry['speed'] as num?;
+      final unit = entry['unit'] as String?;
+      if (speed == null) return null;
+      if (unit == null || unit.toLowerCase().contains('km')) {
+        return speed.toDouble();
+      }
+      if (unit.toLowerCase().contains('mph')) {
+        return speed.toDouble() * 1.60934;
+      }
+      return speed.toDouble();
+    }
+    return null;
   }
 
   /// Encontra o índice do segmento mais próximo na rota
@@ -257,4 +292,3 @@ class MapboxNavigationService {
     return _haversineDistance(currentPosition, nextStepPosition);
   }
 }
-
