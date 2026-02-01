@@ -113,18 +113,6 @@ class _MapPageContentState extends State<_MapPageContent> {
                   },
                 ),
 
-              // Badge de limite de velocidade (modo Drive)
-              if (state.isNavigating)
-                Positioned(
-                  left: 16,
-                  bottom: 110,
-                  child: SafeArea(
-                    top: false,
-                    right: false,
-                    child: SpeedLimitBadge(speedLimitKmh: state.speedLimitKmh),
-                  ),
-                ),
-
               // Header overlay (search bar) - oculto durante navegação
               if (!state.isNavigating) _buildHeader(context, state),
 

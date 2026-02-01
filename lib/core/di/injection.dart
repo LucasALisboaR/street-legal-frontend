@@ -11,6 +11,7 @@ import 'package:gearhead_br/features/auth/domain/usecases/register_usecase.dart'
 import 'package:gearhead_br/features/auth/presentation/bloc/forgot_password_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/register_bloc.dart';
+import 'package:gearhead_br/features/map/data/services/heading_service.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
 import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service.dart';
 import 'package:gearhead_br/features/map/data/repositories/map_repository_impl.dart';
@@ -51,6 +52,10 @@ Future<void> configureDependencies() async {
   
   getIt.registerLazySingleton<LocationService>(
     () => LocationService(),
+  );
+
+  getIt.registerLazySingleton<HeadingService>(
+    () => HeadingService(),
   );
 
   getIt.registerLazySingleton<MapboxNavigationService>(
@@ -118,8 +123,8 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<MapBloc>(
     () => MapBloc(
       locationService: getIt<LocationService>(),
+      headingService: getIt<HeadingService>(),
       navigationService: getIt<MapboxNavigationService>(),
     ),
   );
 }
-
