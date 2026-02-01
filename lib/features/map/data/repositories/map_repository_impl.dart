@@ -239,6 +239,7 @@ class MapRepositoryImpl implements MapRepository {
         'id': 'user-2',
         'displayName': 'Carlos Turbo',
         'vehicle': 'Civic Si',
+        'vehicleImageUrl': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80',
         'distance': distances[0],
         'latitude': userLocations[0].latitude,
         'longitude': userLocations[0].longitude,

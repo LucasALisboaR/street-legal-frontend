@@ -9,7 +9,10 @@ import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_event.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
+import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/presentation/widgets/mapbox_map_widget.dart';
+import 'package:gearhead_br/features/map/presentation/widgets/map_marker_modals.dart';
 import 'package:gearhead_br/features/map/presentation/widgets/navigation_panel.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart'
     as nav_entities;
@@ -100,18 +103,10 @@ class _MapPageContentState extends State<_MapPageContent> {
                   context.read<MapBloc>().add(const CameraFollowDisabled());
                 },
                 onEventSelected: (meetup) {
-                  context.read<MapBloc>().add(
-                        DestinationSelected(
-                          destination: nav_entities.NavigationDestination(
-                            point: nav_entities.MapPoint(
-                              latitude: meetup.location.latitude,
-                              longitude: meetup.location.longitude,
-                            ),
-                            name: meetup.name,
-                            address: meetup.location.address,
-                          ),
-                        ),
-                      );
+                  _showEventDetails(context, meetup);
+                },
+                onUserSelected: (user) {
+                  _showUserDetails(context, user);
                 },
                 onMapCreated: (mapboxMap) {
                   _mapboxMap = mapboxMap;
@@ -187,6 +182,53 @@ class _MapPageContentState extends State<_MapPageContent> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showEventDetails(BuildContext context, MeetupEntity meetup) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: EventDetailsSheet(
+          meetup: meetup,
+          onNavigate: () {
+            Navigator.pop(sheetContext);
+            final destination = nav_entities.NavigationDestination(
+              point: nav_entities.MapPoint(
+                latitude: meetup.location.latitude,
+                longitude: meetup.location.longitude,
+              ),
+              name: meetup.name,
+              address: meetup.location.address,
+            );
+            context.read<MapBloc>().add(
+                  NavigationStarted(destination: destination),
+                );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showUserDetails(BuildContext context, MapUserEntity user) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: UserDetailsSheet(
+          user: user,
+          onClose: () => Navigator.pop(sheetContext),
+        ),
       ),
     );
   }
