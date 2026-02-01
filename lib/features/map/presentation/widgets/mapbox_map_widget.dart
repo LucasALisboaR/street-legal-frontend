@@ -281,12 +281,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           PointAnnotationOptions(
             geometry: geometry,
             image: _userMarkerImage,
-            iconSize: 0.8,
+            iconSize: 1.1, // Aumentado de 0.8 para 1.1
           ),
         );
         _userAnnotations[user.id] = created;
       } else {
         existing.geometry = geometry;
+        existing.iconSize = 1.1; // Atualiza o tamanho também
         await _userAnnotationManager!.update(existing);
       }
     }
@@ -323,13 +324,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           PointAnnotationOptions(
             geometry: geometry,
             image: eventMarkerImage,
-            iconSize: 0.9,
+            iconSize: 0.7, // Diminuído de 0.9 para 0.7
           ),
         );
         _eventAnnotations[meetup.id] = created;
         _eventByAnnotationId[created.id] = meetup;
       } else {
         existing.geometry = geometry;
+        existing.iconSize = 0.7; // Atualiza o tamanho também
         // Atualiza a imagem se a cor mudou
         if (existing.image != eventMarkerImage) {
           existing.image = eventMarkerImage;
@@ -341,10 +343,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   }
 
   Future<void> _ensureMarkerImages() async {
-    _userMarkerImage ??= await _createMarkerImage(
-      fillColor: AppColors.info,
-      borderColor: Colors.white,
-    );
+    _userMarkerImage ??= await _createUserMarkerImage();
   }
 
   /// Obtém ou cria a imagem do marcador de evento para uma cor específica
@@ -379,50 +378,50 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     }
   }
 
-  Future<Uint8List> _createMarkerImage({
-    required Color fillColor,
-    required Color borderColor,
-  }) async {
+  /// Cria um marcador de usuário em formato de seta simples
+  Future<Uint8List> _createUserMarkerImage() async {
     const size = 64.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final center = Offset(size / 2, size / 2);
 
-    final glowPaint = Paint()
-      ..color = fillColor.withOpacity(0.35)
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-
-    final fillPaint = Paint()
-      ..color = fillColor
+    // Cor da seta (azul info)
+    final arrowColor = AppColors.info;
+    final arrowPaint = Paint()
+      ..color = arrowColor
       ..style = PaintingStyle.fill;
 
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const arrowHeight = 32.0;
+    const arrowWidth = 24.0;
 
-    canvas.drawCircle(center, 22, glowPaint);
-    canvas.drawCircle(center, 18, fillPaint);
-    canvas.drawCircle(center, 18, borderPaint);
+    // Path da seta apontando para cima
+    final arrowPath = Path()
+      ..moveTo(centerX, centerY - arrowHeight / 2) // Ponta
+      ..lineTo(centerX - arrowWidth / 2, centerY + arrowHeight / 2) // Esquerda
+      ..lineTo(centerX, centerY + arrowHeight / 4) // Centro inferior
+      ..lineTo(centerX + arrowWidth / 2, centerY + arrowHeight / 2) // Direita
+      ..close();
 
+    // Desenha apenas a seta (sem glow, sem borda, sem pulso)
+    canvas.drawPath(arrowPath, arrowPaint);
+
+    // Converte para imagem
     final picture = recorder.endRecording();
     final image = await picture.toImage(size.toInt(), size.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
 
-  /// Cria um marcador de evento com círculo e efeito de pulso
+  /// Cria um marcador de evento em formato de donut (círculo com centro transparente)
   Future<Uint8List> _createEventMarkerImage(Color fillColor) async {
     const size = 64.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final center = Offset(size / 2, size / 2);
 
-    // final borderColor = Colors.white; // Comentado - não está sendo usado
-
     // Efeito de pulso - círculos concêntricos com opacidade decrescente
-    // Cria ondas de pulso ao redor do círculo principal
+    // Cria ondas de pulso ao redor do donut principal
     for (int i = 3; i > 0; i--) {
       final pulseRadius = 22.0 + (i * 4.0);
       final pulseOpacity = 0.15 - (i * 0.04);
@@ -434,27 +433,19 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       canvas.drawCircle(center, pulseRadius, pulsePaint);
     }
 
-    // Glow/sombra externa
-    final glowPaint = Paint()
-      ..color = fillColor.withOpacity(0.35)
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    // Cria o formato de donut usando Path com fillType evenOdd
+    // Isso permite criar um círculo externo e "cortar" o círculo interno
+    final donutPath = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: 18)) // Círculo externo
+      ..addOval(Rect.fromCircle(center: center, radius: 10)) // Círculo interno (será cortado)
+      ..fillType = PathFillType.evenOdd;
 
-    // Fundo do círculo
     final fillPaint = Paint()
       ..color = fillColor
       ..style = PaintingStyle.fill;
 
-    // Borda do círculo (comentada - pode ser reativada se necessário)
-    // final borderPaint = Paint()
-    //   ..color = borderColor
-    //   ..style = PaintingStyle.stroke
-    //   ..strokeWidth = 3;
-
-    // Desenha o círculo de fundo
-    canvas.drawCircle(center, 22, glowPaint);
-    canvas.drawCircle(center, 18, fillPaint);
-    // canvas.drawCircle(center, 18, borderPaint);
+    // Desenha o donut
+    canvas.drawPath(donutPath, fillPaint);
 
     // Converte para imagem
     final picture = recorder.endRecording();
