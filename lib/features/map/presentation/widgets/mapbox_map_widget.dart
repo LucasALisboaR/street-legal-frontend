@@ -324,14 +324,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           PointAnnotationOptions(
             geometry: geometry,
             image: eventMarkerImage,
-            iconSize: 0.7, // Diminuído de 0.9 para 0.7
+            iconSize: 0.85, // Aumentado de 0.7 para 0.85
           ),
         );
         _eventAnnotations[meetup.id] = created;
         _eventByAnnotationId[created.id] = meetup;
       } else {
         existing.geometry = geometry;
-        existing.iconSize = 0.7; // Atualiza o tamanho também
+        existing.iconSize = 0.85; // Atualiza o tamanho também
         // Atualiza a imagem se a cor mudou
         if (existing.image != eventMarkerImage) {
           existing.image = eventMarkerImage;
@@ -428,19 +428,6 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     final canvas = Canvas(recorder);
     final center = Offset(size / 2, size / 2);
 
-    // Efeito de pulso - círculos concêntricos com opacidade decrescente
-    // Cria ondas de pulso ao redor do donut principal
-    for (int i = 3; i > 0; i--) {
-      final pulseRadius = 22.0 + (i * 4.0);
-      final pulseOpacity = 0.15 - (i * 0.04);
-      
-      final pulsePaint = Paint()
-        ..color = fillColor.withOpacity(pulseOpacity)
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawCircle(center, pulseRadius, pulsePaint);
-    }
-
     // Cria o formato de donut usando Path com fillType evenOdd
     // Isso permite criar um círculo externo e "cortar" o círculo interno
     final donutPath = Path()
@@ -452,7 +439,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       ..color = fillColor
       ..style = PaintingStyle.fill;
 
-    // Desenha o donut
+    // Desenha o donut (sem glow/pulso)
     canvas.drawPath(donutPath, fillPaint);
 
     // Converte para imagem
