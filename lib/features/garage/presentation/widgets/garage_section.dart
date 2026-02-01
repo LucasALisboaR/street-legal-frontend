@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
-import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
-import 'package:gearhead_br/features/profile/presentation/widgets/vehicle_form_dialog.dart';
+import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/garage/presentation/widgets/vehicle_form_dialog.dart';
 
 /// Seção de Garagem dentro do Perfil
 class GarageSection extends StatelessWidget {

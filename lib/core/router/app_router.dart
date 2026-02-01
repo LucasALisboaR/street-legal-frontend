@@ -7,7 +7,7 @@ import 'package:gearhead_br/features/events/presentation/pages/events_page.dart'
 import 'package:gearhead_br/features/map/presentation/pages/map_page.dart';
 import 'package:gearhead_br/features/moments/presentation/pages/moments_page.dart';
 import 'package:gearhead_br/features/profile/presentation/pages/profile_page.dart';
-import 'package:gearhead_br/features/profile/presentation/pages/garage_management_page.dart';
+import 'package:gearhead_br/features/garage/presentation/pages/garage_management_page.dart';
 import 'package:go_router/go_router.dart';
 
 /// Configuração de rotas do GEARHEAD BR

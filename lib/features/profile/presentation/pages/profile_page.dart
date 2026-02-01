@@ -6,7 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
-import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
 import 'package:gearhead_br/features/profile/domain/entities/badge_entity.dart';
 
 /// Página de Perfil do usuário
@@ -1397,4 +1397,3 @@ class _BadgeDetailsDialog extends StatelessWidget {
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }
 }
-
