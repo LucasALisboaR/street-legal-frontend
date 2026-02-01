@@ -125,6 +125,7 @@ Future<void> configureDependencies() async {
       locationService: getIt<LocationService>(),
       headingService: getIt<HeadingService>(),
       navigationService: getIt<MapboxNavigationService>(),
+      mapRepository: getIt<MapRepository>(),
     ),
   );
 }

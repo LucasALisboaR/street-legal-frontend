@@ -136,3 +136,15 @@ class LocationErrorOccurred extends MapEvent {
   @override
   List<Object?> get props => [message];
 }
+
+/// Solicita atualização de usuários e eventos próximos.
+class NearbyPointsRequested extends MapEvent {
+  const NearbyPointsRequested({
+    this.force = false,
+  });
+
+  final bool force;
+
+  @override
+  List<Object?> get props => [force];
+}
