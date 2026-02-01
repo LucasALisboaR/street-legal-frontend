@@ -44,7 +44,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   final Map<String, PointAnnotation> _eventAnnotations = {};
   final Map<String, MeetupEntity> _eventByAnnotationId = {};
   Uint8List? _userMarkerImage;
-  Uint8List? _eventMarkerImage;
+  final Map<String, Uint8List> _eventMarkerImagesByColor = {}; // Cache de imagens por cor
   OnPointAnnotationClickListener? _eventClickListener;
 
   // Throttle para câmera - evita chamadas excessivas
@@ -314,11 +314,15 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         coordinates: Position(meetup.location.longitude, meetup.location.latitude),
       );
 
+      // Obtém ou cria a imagem do marcador baseada na cor do evento
+      final eventColor = meetup.color ?? '#FF4500'; // Fallback para accent se não tiver cor
+      final eventMarkerImage = await _getEventMarkerImage(eventColor);
+
       if (existing == null) {
         final created = await _eventAnnotationManager!.create(
           PointAnnotationOptions(
             geometry: geometry,
-            image: _eventMarkerImage,
+            image: eventMarkerImage,
             iconSize: 0.9,
           ),
         );
@@ -326,6 +330,10 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         _eventByAnnotationId[created.id] = meetup;
       } else {
         existing.geometry = geometry;
+        // Atualiza a imagem se a cor mudou
+        if (existing.image != eventMarkerImage) {
+          existing.image = eventMarkerImage;
+        }
         await _eventAnnotationManager!.update(existing);
         _eventByAnnotationId[existing.id] = meetup;
       }
@@ -337,10 +345,38 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       fillColor: AppColors.info,
       borderColor: Colors.white,
     );
-    _eventMarkerImage ??= await _createMarkerImage(
-      fillColor: AppColors.accent,
-      borderColor: Colors.white,
-    );
+  }
+
+  /// Obtém ou cria a imagem do marcador de evento para uma cor específica
+  Future<Uint8List> _getEventMarkerImage(String colorHex) async {
+    // Usa a cor como chave do cache
+    if (_eventMarkerImagesByColor.containsKey(colorHex)) {
+      return _eventMarkerImagesByColor[colorHex]!;
+    }
+
+    // Converte hex para Color
+    final color = _hexToColor(colorHex);
+    
+    // Cria a imagem e armazena no cache
+    final image = await _createEventMarkerImage(color);
+    _eventMarkerImagesByColor[colorHex] = image;
+    
+    return image;
+  }
+
+  /// Converte string hex para Color
+  Color _hexToColor(String hexString) {
+    try {
+      // Remove o # se presente
+      final hex = hexString.replaceFirst('#', '');
+      // Adiciona FF no início para alpha se não tiver
+      final hexWithAlpha = hex.length == 6 ? 'FF$hex' : hex;
+      // Converte para int e cria a Color
+      return Color(int.parse(hexWithAlpha, radix: 16));
+    } catch (e) {
+      // Fallback para cor padrão em caso de erro
+      return AppColors.accent;
+    }
   }
 
   Future<Uint8List> _createMarkerImage({
@@ -370,6 +406,57 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     canvas.drawCircle(center, 18, fillPaint);
     canvas.drawCircle(center, 18, borderPaint);
 
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  /// Cria um marcador de evento com círculo e efeito de pulso
+  Future<Uint8List> _createEventMarkerImage(Color fillColor) async {
+    const size = 64.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final center = Offset(size / 2, size / 2);
+
+    // final borderColor = Colors.white; // Comentado - não está sendo usado
+
+    // Efeito de pulso - círculos concêntricos com opacidade decrescente
+    // Cria ondas de pulso ao redor do círculo principal
+    for (int i = 3; i > 0; i--) {
+      final pulseRadius = 22.0 + (i * 4.0);
+      final pulseOpacity = 0.15 - (i * 0.04);
+      
+      final pulsePaint = Paint()
+        ..color = fillColor.withOpacity(pulseOpacity)
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(center, pulseRadius, pulsePaint);
+    }
+
+    // Glow/sombra externa
+    final glowPaint = Paint()
+      ..color = fillColor.withOpacity(0.35)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    // Fundo do círculo
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    // Borda do círculo (comentada - pode ser reativada se necessário)
+    // final borderPaint = Paint()
+    //   ..color = borderColor
+    //   ..style = PaintingStyle.stroke
+    //   ..strokeWidth = 3;
+
+    // Desenha o círculo de fundo
+    canvas.drawCircle(center, 22, glowPaint);
+    canvas.drawCircle(center, 18, fillPaint);
+    // canvas.drawCircle(center, 18, borderPaint);
+
+    // Converte para imagem
     final picture = recorder.endRecording();
     final image = await picture.toImage(size.toInt(), size.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);

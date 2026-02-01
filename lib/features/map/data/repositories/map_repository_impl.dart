@@ -94,6 +94,7 @@ class MapRepositoryImpl implements MapRepository {
         startTime: DateTime.now().add(const Duration(hours: 3)),
         organizerId: 'user-1',
         participantIds: const ['user-2', 'user-3', 'user-4'],
+        color: '#FF4500', // Laranja (accent)
       ),
       MeetupEntity(
         id: '2',
@@ -108,6 +109,7 @@ class MapRepositoryImpl implements MapRepository {
         startTime: DateTime.now().add(const Duration(days: 1)),
         organizerId: 'user-5',
         participantIds: const ['user-6', 'user-7'],
+        color: '#00E676', // verde (success)
       ),
     ]);
   }
