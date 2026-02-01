@@ -77,6 +77,24 @@ class MapRepositoryImpl implements MapRepository {
         maxDistanceMeters: radiusMeters,
         random: rng,
       ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
     ];
 
     // Mock: retorna alguns encontros de exemplo
@@ -111,6 +129,51 @@ class MapRepositoryImpl implements MapRepository {
         participantIds: const ['user-6', 'user-7'],
         color: '#00E676', // verde (success)
       ),
+      MeetupEntity(
+        id: '3',
+        name: 'Tunagem Japonesa',
+        description: 'Encontro de carros japoneses tunados',
+        location: LocationEntity(
+          latitude: meetupLocations[2].latitude,
+          longitude: meetupLocations[2].longitude,
+          address: 'Av. Paulista, São Paulo',
+          timestamp: DateTime.now(),
+        ),
+        startTime: DateTime.now().add(const Duration(hours: 6)),
+        organizerId: 'user-8',
+        participantIds: const ['user-9', 'user-10', 'user-11', 'user-12'],
+        color: '#00B0FF', // Azul (info)
+      ),
+      MeetupEntity(
+        id: '4',
+        name: 'Classic Cars Show',
+        description: 'Exposição de carros clássicos e antigos',
+        location: LocationEntity(
+          latitude: meetupLocations[3].latitude,
+          longitude: meetupLocations[3].longitude,
+          address: 'Parque Villa-Lobos, São Paulo',
+          timestamp: DateTime.now(),
+        ),
+        startTime: DateTime.now().add(const Duration(days: 2)),
+        organizerId: 'user-13',
+        participantIds: const ['user-14', 'user-15'],
+        color: '#FFEA00', // Amarelo (warning)
+      ),
+      MeetupEntity(
+        id: '5',
+        name: 'Drift Night',
+        description: 'Noite de drift e manobras',
+        location: LocationEntity(
+          latitude: meetupLocations[4].latitude,
+          longitude: meetupLocations[4].longitude,
+          address: 'Autódromo de Interlagos, São Paulo',
+          timestamp: DateTime.now(),
+        ),
+        startTime: DateTime.now().add(const Duration(hours: 12)),
+        organizerId: 'user-16',
+        participantIds: const ['user-17', 'user-18', 'user-19', 'user-20', 'user-21'],
+        color: '#FF1744', // Vermelho (error)
+      ),
     ]);
   }
 
@@ -128,6 +191,30 @@ class MapRepositoryImpl implements MapRepository {
     final rng = _seededRandom(latitude, longitude, 22);
 
     final userLocations = [
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
       randomOffsetAround(
         origin: anchor,
         minDistanceMeters: _minNearbyDistanceMeters,
@@ -163,6 +250,38 @@ class MapRepositoryImpl implements MapRepository {
         'distance': distances[1],
         'latitude': userLocations[1].latitude,
         'longitude': userLocations[1].longitude,
+      },
+      {
+        'id': 'user-4',
+        'displayName': 'Ana Drift',
+        'vehicle': 'Silvia S15',
+        'distance': distances[2],
+        'latitude': userLocations[2].latitude,
+        'longitude': userLocations[2].longitude,
+      },
+      {
+        'id': 'user-5',
+        'displayName': 'Lucas JDM',
+        'vehicle': 'Supra MK4',
+        'distance': distances[3],
+        'latitude': userLocations[3].latitude,
+        'longitude': userLocations[3].longitude,
+      },
+      {
+        'id': 'user-6',
+        'displayName': 'Rafael Classic',
+        'vehicle': 'Fusca 1972',
+        'distance': distances[4],
+        'latitude': userLocations[4].latitude,
+        'longitude': userLocations[4].longitude,
+      },
+      {
+        'id': 'user-7',
+        'displayName': 'Mariana Speed',
+        'vehicle': 'Golf GTI',
+        'distance': distances[5],
+        'latitude': userLocations[5].latitude,
+        'longitude': userLocations[5].longitude,
       },
     ]);
   }
