@@ -378,17 +378,15 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     }
   }
 
-  /// Cria um marcador de usuário em formato de seta simples
+  /// Cria um marcador de usuário em formato de seta com bordas laranja escuras
   Future<Uint8List> _createUserMarkerImage() async {
     const size = 64.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Cor da seta (azul info)
-    final arrowColor = AppColors.info;
-    final arrowPaint = Paint()
-      ..color = arrowColor
-      ..style = PaintingStyle.fill;
+    // Laranja mais escuro para as bordas (diferente do laranja padrão)
+    final borderColor = AppColors.accentDark; // Laranja escuro
+    final fillColor = borderColor.withOpacity(0.5); // Preenchimento com opacity reduzida
 
     const centerX = size / 2;
     const centerY = size / 2;
@@ -403,8 +401,18 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       ..lineTo(centerX + arrowWidth / 2, centerY + arrowHeight / 2) // Direita
       ..close();
 
-    // Desenha apenas a seta (sem glow, sem borda, sem pulso)
-    canvas.drawPath(arrowPath, arrowPaint);
+    // Desenha o preenchimento primeiro (com opacity reduzida)
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(arrowPath, fillPaint);
+
+    // Desenha as bordas (opacity 1 - totalmente opaco)
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawPath(arrowPath, borderPaint);
 
     // Converte para imagem
     final picture = recorder.endRecording();
