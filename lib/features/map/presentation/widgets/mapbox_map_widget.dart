@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
 
@@ -23,12 +24,14 @@ class MapboxMapWidget extends StatefulWidget {
     required this.onMapCreated,
     this.onUserCameraInteraction,
     this.onEventSelected,
+    this.onUserSelected,
   });
 
   final MapState mapState;
   final void Function(MapboxMap mapboxMap) onMapCreated;
   final VoidCallback? onUserCameraInteraction;
   final void Function(MeetupEntity meetup)? onEventSelected;
+  final void Function(MapUserEntity user)? onUserSelected;
 
   @override
   State<MapboxMapWidget> createState() => _MapboxMapWidgetState();
@@ -43,9 +46,11 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   final Map<String, PointAnnotation> _userAnnotations = {};
   final Map<String, PointAnnotation> _eventAnnotations = {};
   final Map<String, MeetupEntity> _eventByAnnotationId = {};
+  final Map<String, MapUserEntity> _userByAnnotationId = {};
   Uint8List? _userMarkerImage;
-  Uint8List? _eventMarkerImage;
+  final Map<String, Uint8List> _eventMarkerImagesByColor = {}; // Cache de imagens por cor
   OnPointAnnotationClickListener? _eventClickListener;
+  OnPointAnnotationClickListener? _userClickListener;
 
   // Throttle para câmera - evita chamadas excessivas
   DateTime _lastCameraUpdate = DateTime.now();
@@ -130,9 +135,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     _userAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
     _eventAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
 
-    _eventClickListener ??= _EventAnnotationClickListener(_handleEventTap);
+    _eventClickListener ??= _AnnotationClickListener(_handleEventTap);
     _eventAnnotationManager!
         .addOnPointAnnotationClickListener(_eventClickListener!);
+
+    _userClickListener ??= _AnnotationClickListener(_handleUserTap);
+    _userAnnotationManager!
+        .addOnPointAnnotationClickListener(_userClickListener!);
 
     // Desabilita rotação por gestos no modo normal
     await mapboxMap.gestures.updateSettings(GesturesSettings(
@@ -266,6 +275,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     for (final id in removedIds) {
       final annotation = _userAnnotations.remove(id);
       if (annotation != null) {
+        _userByAnnotationId.remove(annotation.id);
         await _userAnnotationManager!.delete(annotation);
       }
     }
@@ -281,13 +291,16 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           PointAnnotationOptions(
             geometry: geometry,
             image: _userMarkerImage,
-            iconSize: 0.8,
+            iconSize: 1.1, // Aumentado de 0.8 para 1.1
           ),
         );
         _userAnnotations[user.id] = created;
+        _userByAnnotationId[created.id] = user;
       } else {
         existing.geometry = geometry;
+        existing.iconSize = 1.1; // Atualiza o tamanho também
         await _userAnnotationManager!.update(existing);
+        _userByAnnotationId[existing.id] = user;
       }
     }
   }
@@ -314,18 +327,27 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         coordinates: Position(meetup.location.longitude, meetup.location.latitude),
       );
 
+      // Obtém ou cria a imagem do marcador baseada na cor do evento
+      final eventColor = meetup.color ?? '#FF4500'; // Fallback para accent se não tiver cor
+      final eventMarkerImage = await _getEventMarkerImage(eventColor);
+
       if (existing == null) {
         final created = await _eventAnnotationManager!.create(
           PointAnnotationOptions(
             geometry: geometry,
-            image: _eventMarkerImage,
-            iconSize: 0.9,
+            image: eventMarkerImage,
+            iconSize: 0.85, // Aumentado de 0.7 para 0.85
           ),
         );
         _eventAnnotations[meetup.id] = created;
         _eventByAnnotationId[created.id] = meetup;
       } else {
         existing.geometry = geometry;
+        existing.iconSize = 0.85; // Atualiza o tamanho também
+        // Atualiza a imagem se a cor mudou
+        if (existing.image != eventMarkerImage) {
+          existing.image = eventMarkerImage;
+        }
         await _eventAnnotationManager!.update(existing);
         _eventByAnnotationId[existing.id] = meetup;
       }
@@ -333,43 +355,106 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   }
 
   Future<void> _ensureMarkerImages() async {
-    _userMarkerImage ??= await _createMarkerImage(
-      fillColor: AppColors.info,
-      borderColor: Colors.white,
-    );
-    _eventMarkerImage ??= await _createMarkerImage(
-      fillColor: AppColors.accent,
-      borderColor: Colors.white,
-    );
+    _userMarkerImage ??= await _createUserMarkerImage();
   }
 
-  Future<Uint8List> _createMarkerImage({
-    required Color fillColor,
-    required Color borderColor,
-  }) async {
+  /// Obtém ou cria a imagem do marcador de evento para uma cor específica
+  Future<Uint8List> _getEventMarkerImage(String colorHex) async {
+    // Usa a cor como chave do cache
+    if (_eventMarkerImagesByColor.containsKey(colorHex)) {
+      return _eventMarkerImagesByColor[colorHex]!;
+    }
+
+    // Converte hex para Color
+    final color = _hexToColor(colorHex);
+    
+    // Cria a imagem e armazena no cache
+    final image = await _createEventMarkerImage(color);
+    _eventMarkerImagesByColor[colorHex] = image;
+    
+    return image;
+  }
+
+  /// Converte string hex para Color
+  Color _hexToColor(String hexString) {
+    try {
+      // Remove o # se presente
+      final hex = hexString.replaceFirst('#', '');
+      // Adiciona FF no início para alpha se não tiver
+      final hexWithAlpha = hex.length == 6 ? 'FF$hex' : hex;
+      // Converte para int e cria a Color
+      return Color(int.parse(hexWithAlpha, radix: 16));
+    } catch (e) {
+      // Fallback para cor padrão em caso de erro
+      return AppColors.accent;
+    }
+  }
+
+  /// Cria um marcador de usuário em formato de seta com bordas laranja escuras
+  Future<Uint8List> _createUserMarkerImage() async {
+    const size = 64.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Laranja mais escuro para as bordas (diferente do laranja padrão)
+    final borderColor = AppColors.accentDark; // Laranja escuro
+    final fillColor = borderColor.withOpacity(0.5); // Preenchimento com opacity reduzida
+
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const arrowHeight = 32.0;
+    const arrowWidth = 24.0;
+
+    // Path da seta apontando para cima
+    final arrowPath = Path()
+      ..moveTo(centerX, centerY - arrowHeight / 2) // Ponta
+      ..lineTo(centerX - arrowWidth / 2, centerY + arrowHeight / 2) // Esquerda
+      ..lineTo(centerX, centerY + arrowHeight / 4) // Centro inferior
+      ..lineTo(centerX + arrowWidth / 2, centerY + arrowHeight / 2) // Direita
+      ..close();
+
+    // Desenha o preenchimento primeiro (com opacity reduzida)
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(arrowPath, fillPaint);
+
+    // Desenha as bordas (opacity 1 - totalmente opaco)
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawPath(arrowPath, borderPaint);
+
+    // Converte para imagem
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  /// Cria um marcador de evento em formato de donut (círculo com centro transparente)
+  Future<Uint8List> _createEventMarkerImage(Color fillColor) async {
     const size = 64.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final center = Offset(size / 2, size / 2);
 
-    final glowPaint = Paint()
-      ..color = fillColor.withOpacity(0.35)
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    // Cria o formato de donut usando Path com fillType evenOdd
+    // Isso permite criar um círculo externo e "cortar" o círculo interno
+    final donutPath = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: 18)) // Círculo externo
+      ..addOval(Rect.fromCircle(center: center, radius: 10)) // Círculo interno (será cortado)
+      ..fillType = PathFillType.evenOdd;
 
     final fillPaint = Paint()
       ..color = fillColor
       ..style = PaintingStyle.fill;
 
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+    // Desenha o donut (sem glow/pulso)
+    canvas.drawPath(donutPath, fillPaint);
 
-    canvas.drawCircle(center, 22, glowPaint);
-    canvas.drawCircle(center, 18, fillPaint);
-    canvas.drawCircle(center, 18, borderPaint);
-
+    // Converte para imagem
     final picture = recorder.endRecording();
     final image = await picture.toImage(size.toInt(), size.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -381,6 +466,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     final meetup = _eventByAnnotationId[annotation.id];
     if (meetup != null) {
       widget.onEventSelected!.call(meetup);
+    }
+  }
+
+  void _handleUserTap(PointAnnotation annotation) {
+    if (widget.onUserSelected == null) return;
+    final user = _userByAnnotationId[annotation.id];
+    if (user != null) {
+      widget.onUserSelected!.call(user);
     }
   }
 
@@ -692,8 +785,8 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   }
 }
 
-class _EventAnnotationClickListener implements OnPointAnnotationClickListener {
-  _EventAnnotationClickListener(this.onTap);
+class _AnnotationClickListener implements OnPointAnnotationClickListener {
+  _AnnotationClickListener(this.onTap);
 
   final void Function(PointAnnotation annotation) onTap;
 

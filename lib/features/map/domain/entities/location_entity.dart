@@ -45,6 +45,7 @@ class MeetupEntity extends Equatable {
     this.participantIds = const [],
     this.coverImageUrl,
     this.isPublic = true,
+    this.color,
   });
   final String id;
   final String name;
@@ -56,6 +57,7 @@ class MeetupEntity extends Equatable {
   final List<String> participantIds;
   final String? coverImageUrl;
   final bool isPublic;
+  final String? color; // Cor do evento em formato hex (ex: "#FF4500")
 
   int get participantCount => participantIds.length;
 
@@ -71,6 +73,7 @@ class MeetupEntity extends Equatable {
         participantIds,
         coverImageUrl,
         isPublic,
+        color,
       ];
 }
 
