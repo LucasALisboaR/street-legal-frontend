@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import 'package:gearhead_br/core/theme/app_colors.dart';
+import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
 
@@ -21,11 +22,13 @@ class MapboxMapWidget extends StatefulWidget {
     required this.mapState,
     required this.onMapCreated,
     this.onUserCameraInteraction,
+    this.onEventSelected,
   });
 
   final MapState mapState;
   final void Function(MapboxMap mapboxMap) onMapCreated;
   final VoidCallback? onUserCameraInteraction;
+  final void Function(MeetupEntity meetup)? onEventSelected;
 
   @override
   State<MapboxMapWidget> createState() => _MapboxMapWidgetState();
@@ -35,6 +38,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   MapboxMap? _mapboxMap;
   PolylineAnnotationManager? _polylineAnnotationManager;
   PolylineAnnotation? _routeLine;
+  PointAnnotationManager? _userAnnotationManager;
+  PointAnnotationManager? _eventAnnotationManager;
+  final Map<String, PointAnnotation> _userAnnotations = {};
+  final Map<String, PointAnnotation> _eventAnnotations = {};
+  final Map<String, MeetupEntity> _eventByAnnotationId = {};
+  Uint8List? _userMarkerImage;
+  Uint8List? _eventMarkerImage;
+  OnPointAnnotationClickListener? _eventClickListener;
 
   // Throttle para câmera - evita chamadas excessivas
   DateTime _lastCameraUpdate = DateTime.now();
@@ -93,6 +104,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       _updatePuckBearing();
     }
 
+    if (widget.mapState.nearbyUsers != oldWidget.mapState.nearbyUsers) {
+      _syncUserAnnotations();
+    }
+
+    if (widget.mapState.nearbyMeetups != oldWidget.mapState.nearbyMeetups) {
+      _syncEventAnnotations();
+    }
+
     // Preview: enquadra a rota inteira com transição suave
     if (widget.mapState.mode == MapMode.preview &&
         (widget.mapState.activeRoute != oldWidget.mapState.activeRoute ||
@@ -108,6 +127,12 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
 
     // Configura os managers de anotação para rotas
     _polylineAnnotationManager = await mapboxMap.annotations.createPolylineAnnotationManager();
+    _userAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
+    _eventAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
+
+    _eventClickListener ??= _EventAnnotationClickListener(_handleEventTap);
+    _eventAnnotationManager!
+        .addOnPointAnnotationClickListener(_eventClickListener!);
 
     // Desabilita rotação por gestos no modo normal
     await mapboxMap.gestures.updateSettings(GesturesSettings(
@@ -132,6 +157,9 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     if (widget.mapState.userPosition != null) {
       await _setInitialCamera(widget.mapState.userPosition!);
     }
+
+    await _syncUserAnnotations();
+    await _syncEventAnnotations();
   }
 
   /// Gera imagem PNG de uma seta direcional
@@ -225,6 +253,135 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
         puckBearing: _currentPuckBearing(),
       ),
     );
+  }
+
+  Future<void> _syncUserAnnotations() async {
+    if (_userAnnotationManager == null) return;
+    await _ensureMarkerImages();
+
+    final nextUsers = widget.mapState.nearbyUsers;
+    final nextIds = nextUsers.map((user) => user.id).toSet();
+
+    final removedIds = _userAnnotations.keys.where((id) => !nextIds.contains(id)).toList();
+    for (final id in removedIds) {
+      final annotation = _userAnnotations.remove(id);
+      if (annotation != null) {
+        await _userAnnotationManager!.delete(annotation);
+      }
+    }
+
+    for (final user in nextUsers) {
+      final existing = _userAnnotations[user.id];
+      final geometry = Point(
+        coordinates: Position(user.location.longitude, user.location.latitude),
+      );
+
+      if (existing == null) {
+        final created = await _userAnnotationManager!.create(
+          PointAnnotationOptions(
+            geometry: geometry,
+            image: _userMarkerImage,
+            iconSize: 0.8,
+          ),
+        );
+        _userAnnotations[user.id] = created;
+      } else {
+        existing.geometry = geometry;
+        await _userAnnotationManager!.update(existing);
+      }
+    }
+  }
+
+  Future<void> _syncEventAnnotations() async {
+    if (_eventAnnotationManager == null) return;
+    await _ensureMarkerImages();
+
+    final nextMeetups = widget.mapState.nearbyMeetups;
+    final nextIds = nextMeetups.map((meetup) => meetup.id).toSet();
+
+    final removedIds = _eventAnnotations.keys.where((id) => !nextIds.contains(id)).toList();
+    for (final id in removedIds) {
+      final annotation = _eventAnnotations.remove(id);
+      if (annotation != null) {
+        _eventByAnnotationId.remove(annotation.id);
+        await _eventAnnotationManager!.delete(annotation);
+      }
+    }
+
+    for (final meetup in nextMeetups) {
+      final existing = _eventAnnotations[meetup.id];
+      final geometry = Point(
+        coordinates: Position(meetup.location.longitude, meetup.location.latitude),
+      );
+
+      if (existing == null) {
+        final created = await _eventAnnotationManager!.create(
+          PointAnnotationOptions(
+            geometry: geometry,
+            image: _eventMarkerImage,
+            iconSize: 0.9,
+          ),
+        );
+        _eventAnnotations[meetup.id] = created;
+        _eventByAnnotationId[created.id] = meetup;
+      } else {
+        existing.geometry = geometry;
+        await _eventAnnotationManager!.update(existing);
+        _eventByAnnotationId[existing.id] = meetup;
+      }
+    }
+  }
+
+  Future<void> _ensureMarkerImages() async {
+    _userMarkerImage ??= await _createMarkerImage(
+      fillColor: AppColors.info,
+      borderColor: Colors.white,
+    );
+    _eventMarkerImage ??= await _createMarkerImage(
+      fillColor: AppColors.accent,
+      borderColor: Colors.white,
+    );
+  }
+
+  Future<Uint8List> _createMarkerImage({
+    required Color fillColor,
+    required Color borderColor,
+  }) async {
+    const size = 64.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final center = Offset(size / 2, size / 2);
+
+    final glowPaint = Paint()
+      ..color = fillColor.withOpacity(0.35)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawCircle(center, 22, glowPaint);
+    canvas.drawCircle(center, 18, fillPaint);
+    canvas.drawCircle(center, 18, borderPaint);
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  void _handleEventTap(PointAnnotation annotation) {
+    if (widget.onEventSelected == null) return;
+    final meetup = _eventByAnnotationId[annotation.id];
+    if (meetup != null) {
+      widget.onEventSelected!.call(meetup);
+    }
   }
 
   PuckBearing _currentPuckBearing() {
@@ -532,6 +689,18 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
       latitude: newLat * (180 / pi),
       longitude: newLon * (180 / pi),
     );
+  }
+}
+
+class _EventAnnotationClickListener implements OnPointAnnotationClickListener {
+  _EventAnnotationClickListener(this.onTap);
+
+  final void Function(PointAnnotation annotation) onTap;
+
+  @override
+  bool onPointAnnotationClick(PointAnnotation annotation) {
+    onTap(annotation);
+    return true;
   }
 }
 

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
 
 /// Modos de operação do mapa
 enum MapMode {
@@ -35,6 +37,8 @@ class MapState extends Equatable {
     this.currentZoom = 15.0,
     this.speedLimitKmh,
     this.userSpeedKmh,
+    this.nearbyMeetups = const [],
+    this.nearbyUsers = const [],
   });
 
   /// Modo atual do mapa (Normal ou Drive)
@@ -79,6 +83,12 @@ class MapState extends Equatable {
   /// Velocidade atual do usuário (km/h)
   final double? userSpeedKmh;
 
+  /// Encontros próximos exibidos no mapa
+  final List<MeetupEntity> nearbyMeetups;
+
+  /// Usuários próximos exibidos no mapa
+  final List<MapUserEntity> nearbyUsers;
+
   @override
   List<Object?> get props => [
         mode,
@@ -95,6 +105,8 @@ class MapState extends Equatable {
         currentZoom,
         speedLimitKmh,
         userSpeedKmh,
+        nearbyMeetups,
+        nearbyUsers,
       ];
 
   /// Cria uma cópia do estado com valores alterados
@@ -113,6 +125,8 @@ class MapState extends Equatable {
     double? currentZoom,
     double? speedLimitKmh,
     double? userSpeedKmh,
+    List<MeetupEntity>? nearbyMeetups,
+    List<MapUserEntity>? nearbyUsers,
     bool clearLocationError = false,
     bool clearSelectedDestination = false,
     bool clearActiveRoute = false,
@@ -138,6 +152,8 @@ class MapState extends Equatable {
       currentZoom: currentZoom ?? this.currentZoom,
       speedLimitKmh: clearSpeedLimit ? null : (speedLimitKmh ?? this.speedLimitKmh),
       userSpeedKmh: userSpeedKmh ?? this.userSpeedKmh,
+      nearbyMeetups: nearbyMeetups ?? this.nearbyMeetups,
+      nearbyUsers: nearbyUsers ?? this.nearbyUsers,
     );
   }
 

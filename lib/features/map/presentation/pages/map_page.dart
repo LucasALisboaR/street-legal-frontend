@@ -99,6 +99,20 @@ class _MapPageContentState extends State<_MapPageContent> {
                 onUserCameraInteraction: () {
                   context.read<MapBloc>().add(const CameraFollowDisabled());
                 },
+                onEventSelected: (meetup) {
+                  context.read<MapBloc>().add(
+                        DestinationSelected(
+                          destination: nav_entities.NavigationDestination(
+                            point: nav_entities.MapPoint(
+                              latitude: meetup.location.latitude,
+                              longitude: meetup.location.longitude,
+                            ),
+                            name: meetup.name,
+                            address: meetup.location.address,
+                          ),
+                        ),
+                      );
+                },
                 onMapCreated: (mapboxMap) {
                   _mapboxMap = mapboxMap;
                 },

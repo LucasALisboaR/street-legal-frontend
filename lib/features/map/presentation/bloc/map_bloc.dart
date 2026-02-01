@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gearhead_br/features/map/data/services/heading_service.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
 import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service.dart';
+import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
+import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
+import 'package:gearhead_br/features/map/domain/utils/geo_utils.dart';
 import 'package:gearhead_br/features/map/domain/utils/navigation_metrics.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_event.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
@@ -20,9 +23,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     required LocationService locationService,
     required HeadingService headingService,
     required MapboxNavigationService navigationService,
+    required MapRepository mapRepository,
   })  : _locationService = locationService,
         _headingService = headingService,
         _navigationService = navigationService,
+        _mapRepository = mapRepository,
         super(MapState.initial()) {
     on<MapInitialized>(_onMapInitialized);
     on<UserPositionUpdated>(_onUserPositionUpdated);
@@ -39,11 +44,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<DestinationCleared>(_onDestinationCleared);
     on<RoutePreviewCancelled>(_onRoutePreviewCancelled);
     on<LocationErrorOccurred>(_onLocationErrorOccurred);
+    on<NearbyPointsRequested>(_onNearbyPointsRequested);
   }
 
   final LocationService _locationService;
   final HeadingService _headingService;
   final MapboxNavigationService _navigationService;
+  final MapRepository _mapRepository;
   StreamSubscription<Position>? _locationSubscription;
   StreamSubscription<double>? _deviceHeadingSubscription;
 
@@ -78,6 +85,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   
   /// Intervalo mínimo entre cálculos de progresso de navegação (ms)
   static const int _progressThrottleMs = 500;
+
+  /// Distância mínima para recalcular usuários/eventos próximos (metros)
+  static const double _nearbyRefreshThresholdMeters = 300.0;
+  MapPoint? _lastNearbyAnchor;
 
   /// Inicialização do mapa
   Future<void> _onMapInitialized(
@@ -120,6 +131,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     // Inicia o stream de localização
     _startLocationStream();
     _startHeadingStream();
+
+    // Reutiliza os mocks do repositório, ancorados na posição real do usuário.
+    add(const NearbyPointsRequested(force: true));
   }
 
   /// Inicia o monitoramento contínuo da localização
@@ -194,6 +208,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       userSpeedKmh: speedToKmh(event.speedMetersPerSecond),
       clearLocationError: true,
     ));
+
+    // Atualiza pontos próximos apenas quando o usuário se desloca o suficiente.
+    add(const NearbyPointsRequested());
 
     // Se estiver navegando, atualiza o progresso (também com throttle)
     if (state.isNavigating) {
@@ -550,6 +567,51 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     Emitter<MapState> emit,
   ) {
     emit(state.copyWith(locationError: event.message));
+  }
+
+  /// Busca usuários e eventos próximos de forma eficiente.
+  Future<void> _onNearbyPointsRequested(
+    NearbyPointsRequested event,
+    Emitter<MapState> emit,
+  ) async {
+    final position = state.userPosition;
+    if (position == null) return;
+
+    if (!event.force && _lastNearbyAnchor != null) {
+      final distance = haversineDistanceMeters(position, _lastNearbyAnchor!);
+      if (distance < _nearbyRefreshThresholdMeters) {
+        return;
+      }
+    }
+
+    _lastNearbyAnchor = position;
+
+    final meetupsResult = await _mapRepository.getNearbyMeetups(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      radiusKm: 2,
+    );
+
+    final usersResult = await _mapRepository.getNearbyUsers(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      radiusKm: 2,
+    );
+
+    final nextMeetups = meetupsResult.fold(
+      (_) => state.nearbyMeetups,
+      (meetups) => meetups,
+    );
+
+    final nextUsers = usersResult.fold(
+      (_) => state.nearbyUsers,
+      (users) => users.map(MapUserEntity.fromMap).toList(),
+    );
+
+    emit(state.copyWith(
+      nearbyMeetups: nextMeetups,
+      nearbyUsers: nextUsers,
+    ));
   }
 
   /// Inicia verificação periódica de desvio de rota

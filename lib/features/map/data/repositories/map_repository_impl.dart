@@ -1,13 +1,23 @@
 import 'package:dartz/dartz.dart';
 import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
+import 'dart:math';
 import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
+import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
+import 'package:gearhead_br/features/map/domain/utils/geo_utils.dart';
 
 /// Implementação do repositório do mapa com geolocator
 class MapRepositoryImpl implements MapRepository {
   final LocationService _locationService;
 
   MapRepositoryImpl(this._locationService);
+  static const double _minNearbyDistanceMeters = 500;
+
+  Random _seededRandom(double latitude, double longitude, int salt) {
+    final latSeed = (latitude * 10000).round();
+    final lonSeed = (longitude * 10000).round();
+    return Random(latSeed ^ (lonSeed << 1) ^ salt);
+  }
 
   @override
   Future<Either<MapFailure, LocationEntity>> getCurrentLocation() async {
@@ -49,6 +59,26 @@ class MapRepositoryImpl implements MapRepository {
   }) async {
     await Future.delayed(const Duration(seconds: 1));
     
+    // Mock existente reutilizado, agora adaptado para ancorar nos arredores do usuário.
+    final anchor = MapPoint(latitude: latitude, longitude: longitude);
+    final radiusMeters = (radiusKm * 1000).clamp(500, 2000).toDouble();
+    final rng = _seededRandom(latitude, longitude, 11);
+
+    final meetupLocations = [
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+    ];
+
     // Mock: retorna alguns encontros de exemplo
     return Right([
       MeetupEntity(
@@ -56,8 +86,8 @@ class MapRepositoryImpl implements MapRepository {
         name: 'Encontro de Opalas',
         description: 'Encontro semanal de entusiastas de Opala',
         location: LocationEntity(
-          latitude: latitude + 0.01,
-          longitude: longitude + 0.01,
+          latitude: meetupLocations[0].latitude,
+          longitude: meetupLocations[0].longitude,
           address: 'Praça da Sé, São Paulo',
           timestamp: DateTime.now(),
         ),
@@ -70,8 +100,8 @@ class MapRepositoryImpl implements MapRepository {
         name: 'Role VW Ar',
         description: 'Fusca, Kombi, Brasilia e toda linha VW refrigerada a ar',
         location: LocationEntity(
-          latitude: latitude - 0.02,
-          longitude: longitude + 0.02,
+          latitude: meetupLocations[1].latitude,
+          longitude: meetupLocations[1].longitude,
           address: 'Ibirapuera, São Paulo',
           timestamp: DateTime.now(),
         ),
@@ -90,19 +120,47 @@ class MapRepositoryImpl implements MapRepository {
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     
+    // Mock existente reutilizado, agora adaptado para coordenadas próximas ao usuário.
+    final anchor = MapPoint(latitude: latitude, longitude: longitude);
+    final radiusMeters = (radiusKm * 1000).clamp(500, 2000).toDouble();
+    final rng = _seededRandom(latitude, longitude, 22);
+
+    final userLocations = [
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+      randomOffsetAround(
+        origin: anchor,
+        minDistanceMeters: _minNearbyDistanceMeters,
+        maxDistanceMeters: radiusMeters,
+        random: rng,
+      ),
+    ];
+
+    final distances = userLocations
+        .map((point) => haversineDistanceMeters(anchor, point) / 1000)
+        .toList();
+
     // Mock: retorna alguns usuários próximos
-    return const Right([
+    return Right([
       {
         'id': 'user-2',
         'displayName': 'Carlos Turbo',
         'vehicle': 'Civic Si',
-        'distance': 0.5,
+        'distance': distances[0],
+        'latitude': userLocations[0].latitude,
+        'longitude': userLocations[0].longitude,
       },
       {
         'id': 'user-3',
         'displayName': 'Pedro V8',
         'vehicle': 'Mustang GT',
-        'distance': 1.2,
+        'distance': distances[1],
+        'latitude': userLocations[1].latitude,
+        'longitude': userLocations[1].longitude,
       },
     ]);
   }
@@ -113,4 +171,3 @@ class MapRepositoryImpl implements MapRepository {
     return const Right(null);
   }
 }
-
