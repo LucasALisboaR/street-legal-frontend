@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
-import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
 
@@ -132,7 +131,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     _eventAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
 
     _eventClickListener ??= _EventAnnotationClickListener(_handleEventTap);
-    await _eventAnnotationManager!
+    _eventAnnotationManager!
         .addOnPointAnnotationClickListener(_eventClickListener!);
 
     // Desabilita rotação por gestos no modo normal
