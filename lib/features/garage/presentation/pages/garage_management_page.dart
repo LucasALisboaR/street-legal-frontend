@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
-import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
-import 'package:gearhead_br/features/profile/presentation/widgets/vehicle_form_dialog.dart';
+import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/garage/presentation/widgets/vehicle_form_dialog.dart';
 
 /// Página de Gestão de Garagem
 /// Exibe todos os veículos cadastrados com opções de editar, excluir e criar novo
@@ -509,4 +509,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

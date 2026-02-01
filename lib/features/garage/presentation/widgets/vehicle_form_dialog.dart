@@ -6,7 +6,7 @@ import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_text_field.dart';
 import 'package:gearhead_br/features/auth/presentation/widgets/neon_button.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
-import 'package:gearhead_br/features/profile/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
 
 /// Dialog para adicionar/editar veículo
 class VehicleFormDialog extends StatefulWidget {
@@ -566,4 +566,3 @@ class _VehicleFormDialogState extends State<VehicleFormDialog> {
     );
   }
 }
-
