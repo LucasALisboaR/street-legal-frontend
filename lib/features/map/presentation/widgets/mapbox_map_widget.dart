@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_state.dart';
 
@@ -23,12 +24,14 @@ class MapboxMapWidget extends StatefulWidget {
     required this.onMapCreated,
     this.onUserCameraInteraction,
     this.onEventSelected,
+    this.onUserSelected,
   });
 
   final MapState mapState;
   final void Function(MapboxMap mapboxMap) onMapCreated;
   final VoidCallback? onUserCameraInteraction;
   final void Function(MeetupEntity meetup)? onEventSelected;
+  final void Function(MapUserEntity user)? onUserSelected;
 
   @override
   State<MapboxMapWidget> createState() => _MapboxMapWidgetState();
@@ -43,9 +46,11 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   final Map<String, PointAnnotation> _userAnnotations = {};
   final Map<String, PointAnnotation> _eventAnnotations = {};
   final Map<String, MeetupEntity> _eventByAnnotationId = {};
+  final Map<String, MapUserEntity> _userByAnnotationId = {};
   Uint8List? _userMarkerImage;
   final Map<String, Uint8List> _eventMarkerImagesByColor = {}; // Cache de imagens por cor
   OnPointAnnotationClickListener? _eventClickListener;
+  OnPointAnnotationClickListener? _userClickListener;
 
   // Throttle para câmera - evita chamadas excessivas
   DateTime _lastCameraUpdate = DateTime.now();
@@ -130,9 +135,13 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     _userAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
     _eventAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
 
-    _eventClickListener ??= _EventAnnotationClickListener(_handleEventTap);
+    _eventClickListener ??= _AnnotationClickListener(_handleEventTap);
     _eventAnnotationManager!
         .addOnPointAnnotationClickListener(_eventClickListener!);
+
+    _userClickListener ??= _AnnotationClickListener(_handleUserTap);
+    _userAnnotationManager!
+        .addOnPointAnnotationClickListener(_userClickListener!);
 
     // Desabilita rotação por gestos no modo normal
     await mapboxMap.gestures.updateSettings(GesturesSettings(
@@ -266,6 +275,7 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     for (final id in removedIds) {
       final annotation = _userAnnotations.remove(id);
       if (annotation != null) {
+        _userByAnnotationId.remove(annotation.id);
         await _userAnnotationManager!.delete(annotation);
       }
     }
@@ -285,10 +295,12 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
           ),
         );
         _userAnnotations[user.id] = created;
+        _userByAnnotationId[created.id] = user;
       } else {
         existing.geometry = geometry;
         existing.iconSize = 1.1; // Atualiza o tamanho também
         await _userAnnotationManager!.update(existing);
+        _userByAnnotationId[existing.id] = user;
       }
     }
   }
@@ -454,6 +466,14 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
     final meetup = _eventByAnnotationId[annotation.id];
     if (meetup != null) {
       widget.onEventSelected!.call(meetup);
+    }
+  }
+
+  void _handleUserTap(PointAnnotation annotation) {
+    if (widget.onUserSelected == null) return;
+    final user = _userByAnnotationId[annotation.id];
+    if (user != null) {
+      widget.onUserSelected!.call(user);
     }
   }
 
@@ -765,8 +785,8 @@ class _MapboxMapWidgetState extends State<MapboxMapWidget> {
   }
 }
 
-class _EventAnnotationClickListener implements OnPointAnnotationClickListener {
-  _EventAnnotationClickListener(this.onTap);
+class _AnnotationClickListener implements OnPointAnnotationClickListener {
+  _AnnotationClickListener(this.onTap);
 
   final void Function(PointAnnotation annotation) onTap;
 
