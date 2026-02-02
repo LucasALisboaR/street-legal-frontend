@@ -241,6 +241,7 @@ class _UserInfoSection extends StatelessWidget {
             : profile.id.substring(0, profile.id.length > 8 ? 8 : profile.id.length);
         final profilePhotoUrl = profile.avatarUrl;
         final bio = profile.bio;
+        final stats = profile.stats;
         final String? backgroundImageUrl = null; // Pode ser adicionado no futuro
 
         return _buildUserInfo(
@@ -248,6 +249,7 @@ class _UserInfoSection extends StatelessWidget {
           userName: userName,
           userHandle: userHandle,
           bio: bio,
+          stats: stats,
           profilePhotoUrl: profilePhotoUrl,
           backgroundImageUrl: backgroundImageUrl,
         );
@@ -260,6 +262,7 @@ class _UserInfoSection extends StatelessWidget {
     required String userName,
     required String userHandle,
     String? bio,
+    UserProfileStats? stats,
     String? profilePhotoUrl,
     String? backgroundImageUrl,
   }) {
@@ -268,50 +271,42 @@ class _UserInfoSection extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Imagem de fundo personalizada (atrás do card)
-          if (backgroundImageUrl != null)
-            Container(
-              width: double.infinity,
-              height: 240,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                image: DecorationImage(
-                  image: CachedNetworkImageProvider(backgroundImageUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            )
-          else
-            Container(
-              width: double.infinity,
-              height: 240,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.darkGrey,
-                    AppColors.black,
-                  ],
-                ),
-              ),
-            ),
-
           // Card de identidade
           Container(
             width: double.infinity,
-            height: 240,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              color: AppColors.darkGrey.withOpacity(0.95),
+              color: backgroundImageUrl != null
+                  ? AppColors.darkGrey.withOpacity(0.95)
+                  : AppColors.darkGrey.withOpacity(0.95),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: AppColors.mediumGrey,
                 width: 1,
               ),
+              image: backgroundImageUrl != null
+                  ? DecorationImage(
+                      image: CachedNetworkImageProvider(backgroundImageUrl),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(
+                        AppColors.darkGrey.withOpacity(0.7),
+                        BlendMode.darken,
+                      ),
+                    )
+                  : null,
+              gradient: backgroundImageUrl == null
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.darkGrey,
+                        AppColors.black,
+                      ],
+                    )
+                  : null,
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -474,48 +469,127 @@ class _UserInfoSection extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 4),
-
-                // Handle do usuário
-                Text(
-                  userHandle,
-                  style: GoogleFonts.rajdhani(
-                    fontSize: 14,
-                    color: AppColors.lightGrey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                // Bio do usuário
+                // Bio do usuário (logo abaixo do nome)
                 if (bio != null && bio.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.mediumGrey.withOpacity(0.5),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                    ),
-                    child: Text(
-                      bio,
-                      style: GoogleFonts.rajdhani(
-                        fontSize: 14,
-                        color: AppColors.lightGrey,
-                        height: 1.5,
+                      decoration: BoxDecoration(
+                        color: AppColors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.mediumGrey.withOpacity(0.5),
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                      child: Text(
+                        bio,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 13,
+                          color: AppColors.lightGrey,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],
+
+                // Status do usuário (carros, eventos, conquistas)
+                if (stats != null) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _StatusChip(
+                        label: 'Carros',
+                        value: stats.totalCars,
+                      ),
+                      _StatusChip(
+                        label: 'Eventos',
+                        value: stats.totalEvents,
+                      ),
+                      _StatusChip(
+                        label: 'Badges',
+                        value: stats.totalBadges,
+                      ),
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 8),
+
+                // Handle do usuário
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    userHandle,
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 14,
+                      color: AppColors.lightGrey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Chip de status do usuário
+  Widget _StatusChip({
+    required String label,
+    required int value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.accent.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value.toString(),
+                style: GoogleFonts.orbitron(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.rajdhani(
+                  fontSize: 9,
+                  color: AppColors.lightGrey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),
