@@ -323,13 +323,6 @@ class _UserInfoSection extends StatelessWidget {
                           color: AppColors.accent,
                           width: 4,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.accent.withOpacity(0.4),
-                            blurRadius: 16,
-                            spreadRadius: 2,
-                          ),
-                        ],
                       ),
                       child: ClipOval(
                                 child: profilePhotoUrl != null
@@ -390,7 +383,7 @@ class _UserInfoSection extends StatelessWidget {
                                         .join('')
                                         .toUpperCase(),
                                     style: GoogleFonts.orbitron(
-                                      fontSize: 32,
+                                      fontSize: 25,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.white,
                                     ),
