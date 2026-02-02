@@ -18,3 +18,34 @@ class ProfileRefreshRequested extends ProfileEvent {
   const ProfileRefreshRequested();
 }
 
+/// Evento para fazer upload de foto de perfil
+class ProfilePictureUploadRequested extends ProfileEvent {
+  const ProfilePictureUploadRequested(this.imagePath);
+  final String imagePath;
+
+  @override
+  List<Object?> get props => [imagePath];
+}
+
+/// Evento para fazer upload de banner
+class ProfileBannerUploadRequested extends ProfileEvent {
+  const ProfileBannerUploadRequested(this.imagePath);
+  final String imagePath;
+
+  @override
+  List<Object?> get props => [imagePath];
+}
+
+/// Evento para atualizar nome e bio
+class ProfileUpdateRequested extends ProfileEvent {
+  const ProfileUpdateRequested({
+    this.name,
+    this.bio,
+  });
+  final String? name;
+  final String? bio;
+
+  @override
+  List<Object?> get props => [name, bio];
+}
+

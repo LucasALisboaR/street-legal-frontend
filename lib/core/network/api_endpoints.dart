@@ -30,6 +30,8 @@ class ApiEndpoints {
   static const String usersSync = '/users/sync';
   static String userById(String userId) => '/users/$userId';
   static String usersByCrew(String crewId) => '/users/crew/$crewId';
+  static String updateUserPicture(String userId) => '/users/update-picture/$userId';
+  static String updateUserBanner(String userId) => '/users/update-banner/$userId';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GARAGE

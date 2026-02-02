@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:gearhead_br/core/auth/auth_service.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
@@ -38,61 +39,133 @@ class _ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocListener<ProfileBloc, ProfileState>(
+      listenWhen: (previous, current) {
+        // Só escutar mudanças relevantes
+        // Ignorar mudanças de initial -> loading (carregamento inicial)
+        if (previous.status == ProfileStatus.initial && 
+            current.status == ProfileStatus.loading) {
+          return false;
+        }
+        
+        // Escutar mudanças de status que indicam operações (upload/update)
+        if (previous.status != current.status) {
+          // Escutar apenas falhas com mensagem ou sucessos após operações
+          if (current.status == ProfileStatus.failure) {
+            return current.errorMessage != null && current.errorMessage!.isNotEmpty;
+          }
+          // Escutar sucesso apenas se veio de uma operação (não do carregamento inicial)
+          if (current.status == ProfileStatus.success) {
+            return previous.status == ProfileStatus.updatingProfile ||
+                   previous.status == ProfileStatus.uploadingPicture ||
+                   previous.status == ProfileStatus.uploadingBanner;
+          }
+        }
+        return false;
+      },
+      listener: (context, state) {
+        // Tratar erros
+        if (state.status == ProfileStatus.failure && 
+            state.errorMessage != null && 
+            state.errorMessage!.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
                 children: [
-                  Text(
-                    'PERFIL',
-                    style: GoogleFonts.orbitron(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
-                      letterSpacing: 3,
+                  const Icon(Icons.error_outline, color: AppColors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(state.errorMessage!),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        
+        // Tratar sucesso de operações
+        if (state.status == ProfileStatus.success && state.profile != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppColors.white),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Perfil atualizado com sucesso!')),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'PERFIL',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.white,
+                        letterSpacing: 3,
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      _IconButton(
-                        icon: Icons.settings_outlined,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 8),
-                      _IconButton(
-                        icon: Icons.logout_rounded,
-                        onTap: () => _showLogoutConfirmation(context),
-                      ),
-                    ],
-                  ),
-                ],
+                    Row(
+                      children: [
+                        _IconButton(
+                          icon: Icons.settings_outlined,
+                          onTap: () {},
+                        ),
+                        const SizedBox(width: 8),
+                        _IconButton(
+                          icon: Icons.logout_rounded,
+                          onTap: () => _showLogoutConfirmation(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // Conteúdo
-            Expanded(
-              child: ListView(
-                children: const [
-                  // Card de Identidade do Usuário
-                  _UserInfoSection(),
+              // Conteúdo
+              Expanded(
+                child: ListView(
+                  children: const [
+                    // Card de Identidade do Usuário
+                    _UserInfoSection(),
 
-                  SizedBox(height: 24),
+                    SizedBox(height: 24),
 
-                  // Veículo Ativo Destacado
-                  _ActiveVehicleSection(),
-                ],
+                    // Veículo Ativo Destacado
+                    _ActiveVehicleSection(),
+                  ],
+                ),
               ),
-            ),
 
-            // Bottom Navigation
-            const BottomNavBar(currentItem: NavItem.profile),
-          ],
+              // Bottom Navigation
+              const BottomNavBar(currentItem: NavItem.profile),
+            ],
+          ),
         ),
       ),
     );
@@ -242,7 +315,8 @@ class _UserInfoSection extends StatelessWidget {
         final profilePhotoUrl = profile.avatarUrl;
         final bio = profile.bio;
         final stats = profile.stats;
-        final String? backgroundImageUrl = null; // Pode ser adicionado no futuro
+        // TODO: Adicionar campo bannerUrl no UserProfileModel quando disponível no backend
+        final String? backgroundImageUrl = null;
 
         return _buildUserInfo(
           context: context,
@@ -271,39 +345,65 @@ class _UserInfoSection extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Banner de fundo (atrás do card)
+          if (backgroundImageUrl != null)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        AppColors.darkGrey.withOpacity(0.7),
+                        BlendMode.darken,
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: backgroundImageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+                    // Botão de editar banner
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () => _showEditBannerDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.accent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: AppColors.accent,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Card de identidade
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              color: backgroundImageUrl != null
-                  ? AppColors.darkGrey.withOpacity(0.95)
-                  : AppColors.darkGrey.withOpacity(0.95),
+              color: AppColors.darkGrey.withOpacity(0.95),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: AppColors.mediumGrey,
                 width: 1,
               ),
-              image: backgroundImageUrl != null
-                  ? DecorationImage(
-                      image: CachedNetworkImageProvider(backgroundImageUrl),
-                      fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                        AppColors.darkGrey.withOpacity(0.7),
-                        BlendMode.darken,
-                      ),
-                    )
-                  : null,
-              gradient: backgroundImageUrl == null
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.darkGrey,
-                        AppColors.black,
-                      ],
-                    )
-                  : null,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -328,6 +428,7 @@ class _UserInfoSection extends StatelessWidget {
                                 child: profilePhotoUrl != null
                             ? CachedNetworkImage(
                                 imageUrl: profilePhotoUrl,
+                                cacheKey: '${profilePhotoUrl}_${DateTime.now().millisecondsSinceEpoch}',
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: AppColors.mediumGrey,
@@ -442,7 +543,7 @@ class _UserInfoSection extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     GestureDetector(
-                      onTap: () => _showEditNameDialog(context, userName),
+                      onTap: () => _showEditNameDialog(context, userName, bio),
                       child: Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
@@ -589,8 +690,11 @@ class _UserInfoSection extends StatelessWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showEditProfileDialog(BuildContext context) async {
+    final imagePicker = ImagePicker();
+    
+    // Mostrar opções: Galeria ou Câmera
+    final source = await showDialog<ImageSource>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.darkGrey,
@@ -598,77 +702,39 @@ class _UserInfoSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         title: Text(
-          'Editar Foto de Perfil',
+          'Selecionar Foto',
           style: GoogleFonts.orbitron(
             color: AppColors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Text(
-          'Funcionalidade de upload de foto será implementada em breve.',
-          style: GoogleFonts.rajdhani(
-            color: AppColors.lightGrey,
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.accent),
+              title: Text(
+                'Galeria',
+                style: GoogleFonts.rajdhani(
+                  color: AppColors.white,
+                  fontSize: 16,
+                ),
               ),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditNameDialog(BuildContext context, String currentName) {
-    final controller = TextEditingController(text: currentName);
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Editar Nome',
-          style: GoogleFonts.orbitron(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          style: GoogleFonts.rajdhani(
-            color: AppColors.white,
-            fontSize: 16,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Digite seu nome',
-            hintStyle: GoogleFonts.rajdhani(
-              color: AppColors.lightGrey,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.mediumGrey,
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.accent),
+              title: Text(
+                'Câmera',
+                style: GoogleFonts.rajdhani(
+                  color: AppColors.white,
+                  fontSize: 16,
+                ),
               ),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.accent,
-              ),
-            ),
-          ),
+          ],
         ),
         actions: [
           TextButton(
@@ -681,30 +747,374 @@ class _UserInfoSection extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implementar atualização do nome via BLoC/Repository
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Nome atualizado!'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+        ],
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final pickedFile = await imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (pickedFile != null && context.mounted) {
+        context.read<ProfileBloc>().add(
+              ProfilePictureUploadRequested(pickedFile.path),
+            );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        String errorMessage = 'Erro ao selecionar imagem';
+        final errorString = e.toString().toLowerCase();
+        
+        if (errorString.contains('cancel') || errorString.contains('canceled')) {
+          // Usuário cancelou, não mostrar erro
+          return;
+        } else if (errorString.contains('permission') || errorString.contains('denied')) {
+          errorMessage = 'Permissão de acesso negada. Verifique as configurações do app.';
+        } else if (errorString.contains('channel') || errorString.contains('connection')) {
+          errorMessage = 'Erro de comunicação. Tente reiniciar o app.';
+        } else {
+          errorMessage = 'Erro ao acessar a galeria/câmera. Tente novamente.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: AppColors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showEditBannerDialog(BuildContext context) async {
+    final imagePicker = ImagePicker();
+    
+    // Mostrar opções: Galeria ou Câmera
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.darkGrey,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Selecionar Banner',
+          style: GoogleFonts.orbitron(
+            color: AppColors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.accent),
+              title: Text(
+                'Galeria',
+                style: GoogleFonts.rajdhani(
+                  color: AppColors.white,
+                  fontSize: 16,
                 ),
-              );
-            },
+              ),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.accent),
+              title: Text(
+                'Câmera',
+                style: GoogleFonts.rajdhani(
+                  color: AppColors.white,
+                  fontSize: 16,
+                ),
+              ),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
             child: Text(
-              'Salvar',
+              'Cancelar',
               style: GoogleFonts.rajdhani(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
+                color: AppColors.lightGrey,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final pickedFile = await imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (pickedFile != null && context.mounted) {
+        context.read<ProfileBloc>().add(
+              ProfileBannerUploadRequested(pickedFile.path),
+            );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        String errorMessage = 'Erro ao selecionar imagem';
+        final errorString = e.toString().toLowerCase();
+        
+        if (errorString.contains('cancel') || errorString.contains('canceled')) {
+          // Usuário cancelou, não mostrar erro
+          return;
+        } else if (errorString.contains('permission') || errorString.contains('denied')) {
+          errorMessage = 'Permissão de acesso negada. Verifique as configurações do app.';
+        } else if (errorString.contains('channel') || errorString.contains('connection')) {
+          errorMessage = 'Erro de comunicação. Tente reiniciar o app.';
+        } else {
+          errorMessage = 'Erro ao acessar a galeria/câmera. Tente novamente.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: AppColors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditNameDialog(BuildContext context, String currentName, String? currentBio) {
+    final nameController = TextEditingController(text: currentName);
+    final bioController = TextEditingController(text: currentBio ?? '');
+    final profileBloc = context.read<ProfileBloc>();
+    
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false, // Não permitir fechar clicando fora durante loading
+      builder: (dialogContext) => BlocProvider.value(
+        value: profileBloc,
+        child: BlocListener<ProfileBloc, ProfileState>(
+          listenWhen: (previous, current) {
+            // Escutar apenas mudanças de updatingProfile para success/failure
+            return previous.status == ProfileStatus.updatingProfile &&
+                   (current.status == ProfileStatus.success || 
+                    current.status == ProfileStatus.failure);
+          },
+          listener: (listenerContext, state) {
+            // Fechar dialog quando atualização for concluída (sucesso ou erro)
+            if (state.status == ProfileStatus.success || 
+                state.status == ProfileStatus.failure) {
+              Navigator.of(dialogContext).pop();
+            }
+          },
+          child: BlocBuilder<ProfileBloc, ProfileState>(
+            builder: (builderContext, state) {
+              final isLoading = state.status == ProfileStatus.updatingProfile;
+              
+              return AlertDialog(
+                backgroundColor: AppColors.darkGrey,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(
+                  'Editar Perfil',
+                  style: GoogleFonts.orbitron(
+                    color: AppColors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nome',
+                        style: GoogleFonts.rajdhani(
+                          color: AppColors.lightGrey,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: nameController,
+                        enabled: !isLoading,
+                        style: GoogleFonts.rajdhani(
+                          color: AppColors.white,
+                          fontSize: 16,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Digite seu nome',
+                          hintStyle: GoogleFonts.rajdhani(
+                            color: AppColors.lightGrey,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.mediumGrey,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          disabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.mediumGrey,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Bio',
+                        style: GoogleFonts.rajdhani(
+                          color: AppColors.lightGrey,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: bioController,
+                        enabled: !isLoading,
+                        style: GoogleFonts.rajdhani(
+                          color: AppColors.white,
+                          fontSize: 16,
+                        ),
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Digite sua bio',
+                          hintStyle: GoogleFonts.rajdhani(
+                            color: AppColors.lightGrey,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.mediumGrey,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          disabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppColors.mediumGrey,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isLoading) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.accent,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Salvando...',
+                              style: GoogleFonts.rajdhani(
+                                color: AppColors.lightGrey,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                    child: Text(
+                      'Cancelar',
+                      style: GoogleFonts.rajdhani(
+                        color: isLoading 
+                            ? AppColors.mediumGrey 
+                            : AppColors.lightGrey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: isLoading
+                        ? null
+                        : () {
+                            final newName = nameController.text.trim();
+                            final newBio = bioController.text.trim();
+                            
+                            builderContext.read<ProfileBloc>().add(
+                                  ProfileUpdateRequested(
+                                    name: newName.isNotEmpty ? newName : null,
+                                    bio: newBio.isNotEmpty ? newBio : null,
+                                  ),
+                                );
+                          },
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: AppColors.accent,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Salvar',
+                            style: GoogleFonts.rajdhani(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }

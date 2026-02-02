@@ -6,6 +6,9 @@ enum ProfileStatus {
   loading,
   success,
   failure,
+  uploadingPicture,
+  uploadingBanner,
+  updatingProfile,
 }
 
 /// Estado do ProfileBloc
