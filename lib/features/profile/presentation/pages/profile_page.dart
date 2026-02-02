@@ -6,12 +6,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gearhead_br/core/auth/auth_service.dart';
 import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
-import 'package:gearhead_br/core/storage/session_storage.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
+import 'package:gearhead_br/features/profile/data/models/user_profile_model.dart';
 import 'package:gearhead_br/features/profile/domain/entities/badge_entity.dart';
-import 'package:gearhead_br/features/users/data/models/user_model.dart';
+import 'package:gearhead_br/features/profile/presentation/bloc/profile_bloc.dart';
 
 /// Página de Perfil do usuário
 class ProfilePage extends StatelessWidget {
@@ -19,8 +19,15 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => GarageBloc()..add(const GarageLoadRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => getIt<ProfileBloc>()..add(const ProfileLoadRequested()),
+        ),
+        BlocProvider(
+          create: (context) => GarageBloc()..add(const GarageLoadRequested()),
+        ),
+      ],
       child: const _ProfileView(),
     );
   }
@@ -183,45 +190,64 @@ class _UserInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sessionStorage = getIt<SessionStorage>();
-    
-    return FutureBuilder<UserModel?>(
-      future: sessionStorage.getUser(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        if (state.status == ProfileStatus.loading) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: AppColors.accent,
-            ),
-          );
-        }
-
-        final user = snapshot.data;
-        if (user == null) {
-          return Center(
-            child: Text(
-              'Erro ao carregar dados do usuário',
-              style: GoogleFonts.rajdhani(
-                color: AppColors.lightGrey,
-                fontSize: 16,
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(
+                color: AppColors.accent,
               ),
             ),
           );
         }
 
-        final userName = user.name ?? 'Usuário';
-        final userHandle = user.username != null 
-            ? '@${user.username}' 
-            : user.email != null 
-                ? user.email!.split('@').first 
-                : 'sem_handle';
-        final profilePhotoUrl = user.photoUrl;
+        if (state.status == ProfileStatus.failure) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppColors.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    state.errorMessage ?? 'Erro ao carregar perfil',
+                    style: GoogleFonts.rajdhani(
+                      color: AppColors.lightGrey,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final profile = state.profile;
+        if (profile == null) {
+          return const SizedBox.shrink();
+        }
+
+        final userName = profile.name ?? 'Usuário';
+        final userHandle = profile.crew?.tag != null
+            ? '@${profile.crew!.tag}'
+            : profile.id.substring(0, profile.id.length > 8 ? 8 : profile.id.length);
+        final profilePhotoUrl = profile.avatarUrl;
+        final bio = profile.bio;
         final String? backgroundImageUrl = null; // Pode ser adicionado no futuro
 
         return _buildUserInfo(
           context: context,
           userName: userName,
           userHandle: userHandle,
+          bio: bio,
           profilePhotoUrl: profilePhotoUrl,
           backgroundImageUrl: backgroundImageUrl,
         );
@@ -233,6 +259,7 @@ class _UserInfoSection extends StatelessWidget {
     required BuildContext context,
     required String userName,
     required String userHandle,
+    String? bio,
     String? profilePhotoUrl,
     String? backgroundImageUrl,
   }) {
@@ -458,6 +485,35 @@ class _UserInfoSection extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+
+                // Bio do usuário
+                if (bio != null && bio.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.mediumGrey.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Text(
+                      bio,
+                      style: GoogleFonts.rajdhani(
+                        fontSize: 14,
+                        color: AppColors.lightGrey,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -682,11 +738,12 @@ class _GarageTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<GarageBloc, GarageState>(
+    return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, state) {
-        final activeVehicle = state.activeVehicle;
+        final profile = state.profile;
+        final vehicles = profile?.garage ?? [];
 
-        if (activeVehicle == null || !state.hasVehicles) {
+        if (vehicles.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -710,16 +767,18 @@ class _GarageTab extends StatelessWidget {
           );
         }
 
-        final additionalVehiclesCount = state.vehicleCount - 1;
-        final vehicleImageUrl = activeVehicle.photoUrls.isNotEmpty
-            ? activeVehicle.photoUrls.first
-            : null;
+        final activeVehicle = vehicles.isNotEmpty ? vehicles.first : null;
+        final additionalVehiclesCount = vehicles.length - 1;
+        final vehicleImageUrl = activeVehicle?.thumbnailUrl;
+
+        if (activeVehicle == null) {
+          return const SizedBox.shrink();
+        }
 
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // Card do veículo ativo
               Container(
                 decoration: BoxDecoration(
@@ -793,48 +852,31 @@ class _GarageTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Ano
-                          Text(
-                            '${activeVehicle.year}',
-                            style: GoogleFonts.rajdhani(
-                              fontSize: 14,
-                              color: AppColors.lightGrey,
-                              fontWeight: FontWeight.w500,
+                          if (activeVehicle.year != null)
+                            Text(
+                              '${activeVehicle.year}',
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 14,
+                                color: AppColors.lightGrey,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
 
-                          const SizedBox(height: 4),
+                          if (activeVehicle.year != null) const SizedBox(height: 4),
 
-                          // Marca e Modelo
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  activeVehicle.brand.toUpperCase(),
-                                  style: GoogleFonts.orbitron(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.white,
-                                    letterSpacing: 1,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  activeVehicle.model.toUpperCase(),
-                                  style: GoogleFonts.orbitron(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.accent,
-                                    letterSpacing: 1,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                          // Nome completo ou nickname
+                          Text(
+                            activeVehicle.fullName?.toUpperCase() ??
+                                activeVehicle.nickname?.toUpperCase() ??
+                                'Veículo',
+                            style: GoogleFonts.orbitron(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accent,
+                              letterSpacing: 1,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
 
                           // Contador de veículos adicionais e botão Ver Garagem
@@ -938,38 +980,129 @@ class _CrewsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Integrar com BLoC de equipes quando disponível
-    // Por enquanto, exibe uma lista vazia com mensagem
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.group_outlined,
-            color: AppColors.lightGrey,
-            size: 64,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Você ainda não está em nenhuma equipe',
-            style: GoogleFonts.rajdhani(
-              fontSize: 16,
-              color: AppColors.lightGrey,
-              fontWeight: FontWeight.w600,
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        final profile = state.profile;
+        final crew = profile?.crew;
+
+        if (crew == null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.group_outlined,
+                  color: AppColors.lightGrey,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Você ainda não está em nenhuma equipe',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 16,
+                    color: AppColors.lightGrey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Junte-se a uma equipe para começar',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    color: AppColors.lightGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
+          );
+        }
+
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (crew.insigniaUrl != null)
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: CachedNetworkImage(
+                      imageUrl: crew.insigniaUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.group_rounded,
+                        color: AppColors.accent,
+                        size: 64,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.group_rounded,
+                  color: AppColors.accent,
+                  size: 64,
+                ),
+              const SizedBox(height: 16),
+              Text(
+                crew.name,
+                style: GoogleFonts.orbitron(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '@${crew.tag}',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  color: AppColors.lightGrey,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (crew.isLeader) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.accent,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    'LÍDER',
+                    style: GoogleFonts.orbitron(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Junte-se a uma equipe para começar',
-            style: GoogleFonts.rajdhani(
-              fontSize: 14,
-              color: AppColors.lightGrey,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -978,115 +1111,92 @@ class _CrewsTab extends StatelessWidget {
 class _BadgesTab extends StatelessWidget {
   const _BadgesTab();
 
-  // Mock data - será substituído por dados reais do BLoC
-  List<BadgeEntity> get _mockBadges => [
-    BadgeEntity(
-      id: '1',
-      userId: 'user-1',
-      eventId: 'event-1',
-      eventName: 'Uberlândia Drag Racing',
-      eventDate: DateTime(2026, 1, 30),
-      badgeImageUrl: 'assets/badge_semfundo.png',
-      eventDescription: 'Evento oficial de arrancada em Uberlândia. Evolution - Gearheads Unite!',
-      eventLocation: 'Uberlândia, MG',
-      earnedAt: DateTime(2026, 1, 30),
-    ),
-    BadgeEntity(
-      id: '2',
-      userId: 'user-1',
-      eventId: 'event-2',
-      eventName: 'São Paulo Car Show',
-      eventDate: DateTime(2025, 12, 15),
-      badgeImageUrl: 'assets/badge_semfundo.png',
-      eventDescription: 'Grande exposição de carros clássicos e modificados em São Paulo.',
-      eventLocation: 'São Paulo, SP',
-      earnedAt: DateTime(2025, 12, 15),
-    ),
-    BadgeEntity(
-      id: '3',
-      userId: 'user-1',
-      eventId: 'event-3',
-      eventName: 'Rio Cruise Night',
-      eventDate: DateTime(2025, 11, 20),
-      badgeImageUrl: 'assets/badge_semfundo.png',
-      eventDescription: 'Cruze noturno pelas principais avenidas do Rio de Janeiro.',
-      eventLocation: 'Rio de Janeiro, RJ',
-      earnedAt: DateTime(2025, 11, 20),
-    ),
-    BadgeEntity(
-      id: '4',
-      userId: 'user-1',
-      eventId: 'event-4',
-      eventName: 'Belo Horizonte Track Day',
-      eventDate: DateTime(2025, 10, 10),
-      badgeImageUrl: 'assets/badge_semfundo.png',
-      eventDescription: 'Dia de pista oficial em Belo Horizonte com várias categorias.',
-      eventLocation: 'Belo Horizonte, MG',
-      earnedAt: DateTime(2025, 10, 10),
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final badges = _mockBadges;
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        final profile = state.profile;
+        final achievements = profile?.achievements ?? [];
 
-    if (badges.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.workspace_premium_outlined,
-              color: AppColors.lightGrey,
-              size: 64,
+        if (achievements.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.workspace_premium_outlined,
+                  color: AppColors.lightGrey,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Nenhum badge conquistado',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 16,
+                    color: AppColors.lightGrey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Participe de eventos oficiais para ganhar badges',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    color: AppColors.lightGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Nenhum badge conquistado',
-              style: GoogleFonts.rajdhani(
-                fontSize: 16,
-                color: AppColors.lightGrey,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Participe de eventos oficiais para ganhar badges',
-              style: GoogleFonts.rajdhani(
-                fontSize: 14,
-                color: AppColors.lightGrey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
+          );
+        }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
-        childAspectRatio: 0.9,
-      ),
-      itemCount: badges.length,
-      itemBuilder: (context, index) {
-        final badge = badges[index];
-        return _BadgeCard(
-          badge: badge,
-          onTap: () => _showBadgeDetails(context, badge),
+        return GridView.builder(
+          padding: const EdgeInsets.all(20),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 20,
+            mainAxisSpacing: 20,
+            childAspectRatio: 0.9,
+          ),
+          itemCount: achievements.length,
+          itemBuilder: (context, index) {
+            final achievement = achievements[index];
+            return _BadgeCard(
+              badge: _convertAchievementToBadge(achievement),
+              onTap: () => _showBadgeDetails(context, achievement),
+            );
+          },
         );
       },
     );
   }
 
-  void _showBadgeDetails(BuildContext context, BadgeEntity badge) {
+  BadgeEntity _convertAchievementToBadge(UserProfileAchievement achievement) {
+    // Converter UserProfileAchievement para BadgeEntity
+    return BadgeEntity(
+      id: achievement.id,
+      userId: '',
+      eventId: '',
+      eventName: achievement.name,
+      eventDate: achievement.acquiredAt ?? DateTime.now(),
+      badgeImageUrl: achievement.imageUrl ?? 'assets/badge_semfundo.png',
+      eventDescription: null,
+      eventLocation: null,
+      earnedAt: achievement.acquiredAt ?? DateTime.now(),
+    );
+  }
+
+  void _showBadgeDetails(
+    BuildContext context,
+    UserProfileAchievement achievement,
+  ) {
     showDialog<void>(
       context: context,
-      builder: (context) => _BadgeDetailsDialog(badge: badge),
+      builder: (context) => _BadgeDetailsDialog(
+        badge: _convertAchievementToBadge(achievement),
+      ),
     );
   }
 }

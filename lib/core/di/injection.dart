@@ -22,6 +22,7 @@ import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service
 import 'package:gearhead_br/features/map/data/repositories/map_repository_impl.dart';
 import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
+import 'package:gearhead_br/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:gearhead_br/features/users/data/services/users_service.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -174,6 +175,17 @@ Future<void> configureDependencies() async {
       headingService: getIt<HeadingService>(),
       navigationService: getIt<MapboxNavigationService>(),
       mapRepository: getIt<MapRepository>(),
+    ),
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROFILE BLOCS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getIt.registerFactory<ProfileBloc>(
+    () => ProfileBloc(
+      usersService: getIt<UsersService>(),
+      sessionStorage: getIt<SessionStorage>(),
     ),
   );
 }

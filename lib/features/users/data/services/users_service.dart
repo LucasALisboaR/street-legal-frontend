@@ -3,6 +3,7 @@ import 'package:gearhead_br/core/network/api_client.dart';
 import 'package:gearhead_br/core/network/api_endpoints.dart';
 import 'package:gearhead_br/core/network/data_sources/base_data_source.dart';
 import 'package:gearhead_br/core/network/models/api_error.dart';
+import 'package:gearhead_br/features/profile/data/models/user_profile_model.dart';
 import 'package:gearhead_br/features/users/data/models/user_model.dart';
 
 /// Service para operações de usuário no backend
@@ -56,6 +57,14 @@ class UsersService extends BaseDataSource {
         },
       ),
       fromJson: (json) => UserModel.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  Future<Either<ApiError, UserProfileModel>> getUserProfile(String userId) {
+    return executeRequest<UserProfileModel>(
+      request: () => apiClient.get(ApiEndpoints.userById(userId)),
+      fromJson: (json) =>
+          UserProfileModel.fromJson(json as Map<String, dynamic>),
     );
   }
 }
