@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:gearhead_br/core/config/app_config.dart';
 import 'package:gearhead_br/core/constants/app_constants.dart';
 import 'package:gearhead_br/core/network/interceptors/auth_interceptor.dart';
 import 'package:gearhead_br/core/network/interceptors/error_interceptor.dart';
@@ -11,11 +12,12 @@ import 'package:gearhead_br/core/network/interceptors/logging_interceptor.dart';
 class ApiClient {
   ApiClient({
     required AuthInterceptor authInterceptor,
+    required ErrorInterceptor errorInterceptor,
     bool enableLogging = true,
   }) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: AppConstants.apiBaseUrl,
+        baseUrl: AppConfig.apiBaseUrl,
         connectTimeout: AppConstants.apiConnectTimeout,
         receiveTimeout: AppConstants.apiReceiveTimeout,
         sendTimeout: AppConstants.apiSendTimeout,
@@ -33,7 +35,7 @@ class ApiClient {
       _dio.interceptors.add(LoggingInterceptor());
     }
     
-    _dio.interceptors.add(ErrorInterceptor());
+    _dio.interceptors.add(errorInterceptor);
   }
 
   late final Dio _dio;
@@ -138,4 +140,3 @@ class ApiClient {
     );
   }
 }
-

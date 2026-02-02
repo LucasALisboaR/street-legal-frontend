@@ -38,12 +38,12 @@ class ForgotPasswordBloc extends Bloc<ForgotPasswordEvent, ForgotPasswordState> 
       ForgotPasswordParams(email: state.email),
     );
 
-    result.fold(
-      (failure) => emit(state.copyWith(
+    await result.fold(
+      (failure) async => emit(state.copyWith(
         status: ForgotPasswordStatus.failure,
         errorMessage: failure.message,
       ),),
-      (_) => emit(state.copyWith(
+      (_) async => emit(state.copyWith(
         status: ForgotPasswordStatus.success,
       ),),
     );

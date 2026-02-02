@@ -1,7 +1,11 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gearhead_br/core/auth/auth_service.dart';
+import 'package:gearhead_br/core/storage/session_storage.dart';
 import 'package:gearhead_br/features/auth/domain/entities/user_entity.dart';
 import 'package:gearhead_br/features/auth/domain/usecases/login_usecase.dart';
+import 'package:gearhead_br/features/users/data/models/user_model.dart';
+import 'package:gearhead_br/features/users/data/services/users_service.dart';
 
 part 'login_event.dart';
 part 'login_state.dart';
@@ -11,6 +15,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
   LoginBloc({
     required this.loginUseCase,
+    required this.usersService,
+    required this.sessionStorage,
+    required this.authService,
   }) : super(const LoginState()) {
     on<LoginEmailChanged>(_onEmailChanged);
     on<LoginPasswordChanged>(_onPasswordChanged);
@@ -18,6 +25,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     on<LoginSubmitted>(_onSubmitted);
   }
   final LoginUseCase loginUseCase;
+  final UsersService usersService;
+  final SessionStorage sessionStorage;
+  final AuthService authService;
 
   void _onEmailChanged(
     LoginEmailChanged event,
@@ -62,16 +72,31 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       LoginParams(email: state.email, password: state.password),
     );
 
-    result.fold(
-      (failure) => emit(state.copyWith(
+    await result.fold(
+      (failure) async => emit(state.copyWith(
         status: LoginStatus.failure,
         errorMessage: failure.message,
       ),),
-      (user) => emit(state.copyWith(
-        status: LoginStatus.success,
-        user: user,
-      ),),
+      (user) async {
+        final syncResult = await usersService.sync();
+        await syncResult.fold(
+          (error) async {
+            await authService.logout(redirectToLogin: false);
+            emit(state.copyWith(
+              status: LoginStatus.failure,
+              errorMessage: error.message,
+            ),);
+          },
+          (backendUser) async {
+            await sessionStorage.saveUser(backendUser);
+            emit(state.copyWith(
+              status: LoginStatus.success,
+              user: user,
+              backendUser: backendUser,
+            ),);
+          },
+        );
+      },
     );
   }
 }
-

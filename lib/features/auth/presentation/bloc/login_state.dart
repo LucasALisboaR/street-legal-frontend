@@ -18,6 +18,7 @@ class LoginState extends Equatable {
     this.status = LoginStatus.initial,
     this.errorMessage,
     this.user,
+    this.backendUser,
   });
   final String email;
   final String password;
@@ -25,6 +26,7 @@ class LoginState extends Equatable {
   final LoginStatus status;
   final String? errorMessage;
   final UserEntity? user;
+  final UserModel? backendUser;
 
   /// Verifica se o e-mail é válido
   bool get isEmailValid {
@@ -67,8 +69,10 @@ class LoginState extends Equatable {
     LoginStatus? status,
     String? errorMessage,
     UserEntity? user,
+    UserModel? backendUser,
     bool clearError = false,
     bool clearUser = false,
+    bool clearBackendUser = false,
   }) {
     return LoginState(
       email: email ?? this.email,
@@ -77,6 +81,8 @@ class LoginState extends Equatable {
       status: status ?? this.status,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       user: clearUser ? null : (user ?? this.user),
+      backendUser:
+          clearBackendUser ? null : (backendUser ?? this.backendUser),
     );
   }
 
@@ -88,6 +94,6 @@ class LoginState extends Equatable {
         status,
         errorMessage,
         user,
+        backendUser,
       ];
 }
-
