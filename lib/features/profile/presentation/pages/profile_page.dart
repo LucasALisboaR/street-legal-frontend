@@ -3,11 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:gearhead_br/core/auth/auth_service.dart';
+import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/router/app_router.dart';
+import 'package:gearhead_br/core/storage/session_storage.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/core/widgets/bottom_nav_bar.dart';
 import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
 import 'package:gearhead_br/features/profile/domain/entities/badge_entity.dart';
+import 'package:gearhead_br/features/users/data/models/user_model.dart';
 
 /// Página de Perfil do usuário
 class ProfilePage extends StatelessWidget {
@@ -88,6 +92,7 @@ class _ProfileView extends StatelessWidget {
   }
 
   void _showLogoutConfirmation(BuildContext context) {
+    final authService = getIt<AuthService>();
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
@@ -124,7 +129,7 @@ class _ProfileView extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.go(AppRouter.login);
+              authService.logout();
             },
             child: Text(
               'Sair',
@@ -176,28 +181,75 @@ class _IconButton extends StatelessWidget {
 class _UserInfoSection extends StatelessWidget {
   const _UserInfoSection();
 
-  // TODO: Obter do backend/estado do usuário
-  String? get _backgroundImageUrl => null; // URL da imagem de fundo personalizada
-  String? get _profilePhotoUrl => null; // URL da foto de perfil
-  String get _userName => 'Alex Speed'; // TODO: Obter do UserEntity
-  String get _userHandle => '@speedster99'; // TODO: Obter do UserEntity
-
   @override
   Widget build(BuildContext context) {
+    final sessionStorage = getIt<SessionStorage>();
+    
+    return FutureBuilder<UserModel?>(
+      future: sessionStorage.getUser(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: AppColors.accent,
+            ),
+          );
+        }
+
+        final user = snapshot.data;
+        if (user == null) {
+          return Center(
+            child: Text(
+              'Erro ao carregar dados do usuário',
+              style: GoogleFonts.rajdhani(
+                color: AppColors.lightGrey,
+                fontSize: 16,
+              ),
+            ),
+          );
+        }
+
+        final userName = user.name ?? 'Usuário';
+        final userHandle = user.username != null 
+            ? '@${user.username}' 
+            : user.email != null 
+                ? user.email!.split('@').first 
+                : 'sem_handle';
+        final profilePhotoUrl = user.photoUrl;
+        final String? backgroundImageUrl = null; // Pode ser adicionado no futuro
+
+        return _buildUserInfo(
+          context: context,
+          userName: userName,
+          userHandle: userHandle,
+          profilePhotoUrl: profilePhotoUrl,
+          backgroundImageUrl: backgroundImageUrl,
+        );
+      },
+    );
+  }
+
+  Widget _buildUserInfo({
+    required BuildContext context,
+    required String userName,
+    required String userHandle,
+    String? profilePhotoUrl,
+    String? backgroundImageUrl,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           // Imagem de fundo personalizada (atrás do card)
-          if (_backgroundImageUrl != null)
+          if (backgroundImageUrl != null)
             Container(
               width: double.infinity,
               height: 240,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 image: DecorationImage(
-                  image: CachedNetworkImageProvider(_backgroundImageUrl!),
+                  image: CachedNetworkImageProvider(backgroundImageUrl),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -258,9 +310,9 @@ class _UserInfoSection extends StatelessWidget {
                         ],
                       ),
                       child: ClipOval(
-                        child: _profilePhotoUrl != null
+                                child: profilePhotoUrl != null
                             ? CachedNetworkImage(
-                                imageUrl: _profilePhotoUrl!,
+                                imageUrl: profilePhotoUrl,
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: AppColors.mediumGrey,
@@ -283,9 +335,9 @@ class _UserInfoSection extends StatelessWidget {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      _userName
+                                      userName
                                           .split(' ')
-                                          .map((n) => n[0])
+                                          .map((n) => n.isNotEmpty ? n[0] : '')
                                           .join('')
                                           .toUpperCase(),
                                       style: GoogleFonts.orbitron(
@@ -310,9 +362,9 @@ class _UserInfoSection extends StatelessWidget {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    _userName
+                                    userName
                                         .split(' ')
-                                        .map((n) => n[0])
+                                        .map((n) => n.isNotEmpty ? n[0] : '')
                                         .join('')
                                         .toUpperCase(),
                                     style: GoogleFonts.orbitron(
@@ -362,7 +414,7 @@ class _UserInfoSection extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        _userName,
+                        userName,
                         style: GoogleFonts.orbitron(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -375,7 +427,7 @@ class _UserInfoSection extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     GestureDetector(
-                      onTap: () => _showEditNameDialog(context),
+                      onTap: () => _showEditNameDialog(context, userName),
                       child: Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
@@ -399,7 +451,7 @@ class _UserInfoSection extends StatelessWidget {
 
                 // Handle do usuário
                 Text(
-                  _userHandle,
+                  userHandle,
                   style: GoogleFonts.rajdhani(
                     fontSize: 14,
                     color: AppColors.lightGrey,
@@ -453,8 +505,8 @@ class _UserInfoSection extends StatelessWidget {
     );
   }
 
-  void _showEditNameDialog(BuildContext context) {
-    final controller = TextEditingController(text: _userName);
+  void _showEditNameDialog(BuildContext context, String currentName) {
+    final controller = TextEditingController(text: currentName);
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
