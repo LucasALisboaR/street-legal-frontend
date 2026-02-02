@@ -1,9 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:gearhead_br/core/auth/auth_service.dart';
 
 /// Interceptor para tratamento centralizado de erros HTTP
 /// 
 /// Converte erros do Dio em exceções customizadas da aplicação
 class ErrorInterceptor extends Interceptor {
+  ErrorInterceptor(this._authService);
+
+  final AuthService _authService;
+
   @override
   void onError(
     DioException err,
@@ -16,18 +21,12 @@ class ErrorInterceptor extends Interceptor {
     if (err.response != null) {
       // Erro com resposta do servidor
       final statusCode = err.response?.statusCode;
-      final data = err.response?.data;
-      
-      // Você pode adicionar lógica adicional aqui, como:
-      // - Refresh token em caso de 401
-      // - Retry automático em caso de 503
-      // - Logging específico de erros
-    } else {
-      // Erro de conexão/timeout
-      // Você pode adicionar lógica de retry aqui
+
+      if (statusCode == 401 || statusCode == 403) {
+        _authService.logout();
+      }
     }
 
     return handler.next(err);
   }
 }
-

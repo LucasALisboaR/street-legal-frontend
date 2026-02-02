@@ -25,6 +25,12 @@ class ApiEndpoints {
   static const String updateProfile = '/user/profile';
   static const String uploadAvatar = '/user/avatar';
 
+  // Street Legal API - Users
+  static const String users = '/users';
+  static const String usersSync = '/users/sync';
+  static String userById(String userId) => '/users/$userId';
+  static String usersByCrew(String crewId) => '/users/crew/$crewId';
+
   // ═══════════════════════════════════════════════════════════════════════════
   // GARAGE
   // ═══════════════════════════════════════════════════════════════════════════
@@ -33,6 +39,11 @@ class ApiEndpoints {
   static String vehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
   static String updateVehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
   static String deleteVehicle(String vehicleId) => '/garage/vehicles/$vehicleId';
+
+  // Street Legal API - Garage
+  static String garageByUser(String userId) => '/garage/$userId';
+  static String garageVehicle(String userId, String carId) =>
+      '/garage/$userId/$carId';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CREW
@@ -73,4 +84,3 @@ class ApiEndpoints {
   static String nearbyLocations = '/map/locations/nearby';
   static String userLocation = '/map/location';
 }
-
