@@ -42,16 +42,19 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       return;
     }
 
-    final result = await usersService.getUserProfile(userId);
+    final result = await usersService.getUserProfile(
+      userId,
+      force: event.force,
+    );
 
     result.fold(
       (error) => emit(state.copyWith(
         status: ProfileStatus.failure,
         errorMessage: error.message,
       )),
-      (profile) => emit(state.copyWith(
+      (profile) => emit(_mergeProfileUpdate(
+        profile,
         status: ProfileStatus.success,
-        profile: profile,
       )),
     );
   }
@@ -60,9 +63,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     ProfileRefreshRequested event,
     Emitter<ProfileState> emit,
   ) async {
-    // Resetar estado e recarregar
-    emit(const ProfileState());
-    add(const ProfileLoadRequested());
+    if (state.status == ProfileStatus.loading) return;
+    add(const ProfileLoadRequested(force: true));
   }
 
   Future<void> _onPictureUploadRequested(
@@ -96,19 +98,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         status: ProfileStatus.failure,
         errorMessage: error.message,
       )),
-      (_) async {
-        // Após upload bem-sucedido, recarregar o perfil completo
-        final profileResult = await usersService.getUserProfile(userId);
-        profileResult.fold(
-          (error) => emit(state.copyWith(
-            status: ProfileStatus.failure,
-            errorMessage: error.message,
-          )),
-          (profile) => emit(state.copyWith(
-            status: ProfileStatus.success,
-            profile: profile,
-          )),
-        );
+      (profile) async {
+        emit(_mergeProfileUpdate(
+          profile,
+          status: ProfileStatus.success,
+          bumpAvatarCache: true,
+        ));
       },
     );
   }
@@ -144,19 +139,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         status: ProfileStatus.failure,
         errorMessage: error.message,
       )),
-      (_) async {
-        // Após upload bem-sucedido, recarregar o perfil completo
-        final profileResult = await usersService.getUserProfile(userId);
-        profileResult.fold(
-          (error) => emit(state.copyWith(
-            status: ProfileStatus.failure,
-            errorMessage: error.message,
-          )),
-          (profile) => emit(state.copyWith(
-            status: ProfileStatus.success,
-            profile: profile,
-          )),
-        );
+      (profile) async {
+        emit(_mergeProfileUpdate(
+          profile,
+          status: ProfileStatus.success,
+          bumpBannerCache: true,
+        ));
       },
     );
   }
@@ -192,36 +180,21 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
                 : 'Erro ao atualizar perfil',
           ));
         },
-        (_) async {
-          // Sempre fazer GET após PATCH bem-sucedido para garantir dados completos
-          // Aguardar um pouco para garantir que o backend processou a atualização
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-          
-          try {
-            final profileResult = await usersService.getUserProfile(userId);
-            profileResult.fold(
-              (error) {
-                emit(state.copyWith(
-                  status: ProfileStatus.failure,
-                  errorMessage: error.message.isNotEmpty 
-                      ? error.message 
-                      : 'Erro ao carregar perfil atualizado',
-                ));
-              },
-              (profile) {
-                emit(state.copyWith(
-                  status: ProfileStatus.success,
-                  profile: profile,
-                  errorMessage: null, // Limpar qualquer erro anterior
-                ));
-              },
-            );
-          } catch (e) {
+        (profile) async {
+          final updatedProfile =
+              profile ?? usersService.getCachedProfile() ?? state.profile;
+          if (updatedProfile == null) {
             emit(state.copyWith(
               status: ProfileStatus.failure,
-              errorMessage: 'Erro ao carregar perfil: ${e.toString()}',
+              errorMessage: 'Erro ao carregar perfil atualizado',
             ));
+            return;
           }
+
+          emit(_mergeProfileUpdate(
+            updatedProfile,
+            status: ProfileStatus.success,
+          ));
         },
       );
     } catch (e) {
@@ -231,5 +204,26 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       ));
     }
   }
-}
 
+  ProfileState _mergeProfileUpdate(
+    UserProfileModel profile, {
+    required ProfileStatus status,
+    bool bumpAvatarCache = false,
+    bool bumpBannerCache = false,
+  }) {
+    final shouldBumpAvatar =
+        bumpAvatarCache || state.profile?.avatarUrl != profile.avatarUrl;
+    final shouldBumpBanner =
+        bumpBannerCache || state.profile?.bannerUrl != profile.bannerUrl;
+
+    return state.copyWith(
+      status: status,
+      profile: profile,
+      avatarCacheBuster:
+          shouldBumpAvatar ? DateTime.now().millisecondsSinceEpoch : null,
+      bannerCacheBuster:
+          shouldBumpBanner ? DateTime.now().millisecondsSinceEpoch : null,
+      clearError: true,
+    );
+  }
+}

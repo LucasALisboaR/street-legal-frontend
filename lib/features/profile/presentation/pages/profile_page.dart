@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gearhead_br/core/auth/auth_service.dart';
 import 'package:gearhead_br/core/di/injection.dart';
@@ -312,11 +313,16 @@ class _UserInfoSection extends StatelessWidget {
         final userHandle = profile.crew?.tag != null
             ? '@${profile.crew!.tag}'
             : profile.id.substring(0, profile.id.length > 8 ? 8 : profile.id.length);
-        final profilePhotoUrl = profile.avatarUrl;
+        final profilePhotoUrl = _withCacheBuster(
+          profile.avatarUrl,
+          state.avatarCacheBuster,
+        );
         final bio = profile.bio;
         final stats = profile.stats;
-        // TODO: Adicionar campo bannerUrl no UserProfileModel quando disponível no backend
-        final String? backgroundImageUrl = null;
+        final backgroundImageUrl = _withCacheBuster(
+          profile.bannerUrl,
+          state.bannerCacheBuster,
+        );
 
         return _buildUserInfo(
           context: context,
@@ -329,6 +335,13 @@ class _UserInfoSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  String? _withCacheBuster(String? url, int cacheBuster) {
+    if (url == null) return null;
+    if (cacheBuster == 0) return url;
+    final separator = url.contains('?') ? '&' : '?';
+    return '$url${separator}v=$cacheBuster';
   }
 
   Widget _buildUserInfo({
@@ -428,7 +441,6 @@ class _UserInfoSection extends StatelessWidget {
                                 child: profilePhotoUrl != null
                             ? CachedNetworkImage(
                                 imageUrl: profilePhotoUrl,
-                                cacheKey: '${profilePhotoUrl}_${DateTime.now().millisecondsSinceEpoch}',
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: AppColors.mediumGrey,
@@ -758,11 +770,41 @@ class _UserInfoSection extends StatelessWidget {
         source: source,
         imageQuality: 85,
       );
-      if (pickedFile != null && context.mounted) {
-        context.read<ProfileBloc>().add(
-              ProfilePictureUploadRequested(pickedFile.path),
-            );
+      if (pickedFile == null || !context.mounted) {
+        return;
       }
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        cropStyle: CropStyle.circle,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Ajustar foto',
+            toolbarColor: AppColors.darkGrey,
+            toolbarWidgetColor: AppColors.white,
+            activeControlsWidgetColor: AppColors.accent,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Ajustar foto',
+            aspectRatioLockEnabled: true,
+            resetButtonHidden: true,
+            rotateButtonsHidden: true,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+
+      if (croppedFile == null || !context.mounted) {
+        return;
+      }
+
+      context.read<ProfileBloc>().add(
+            ProfilePictureUploadRequested(croppedFile.path),
+          );
     } catch (e) {
       if (context.mounted) {
         String errorMessage = 'Erro ao selecionar imagem';
