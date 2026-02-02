@@ -7,6 +7,7 @@ class UserProfileModel extends Equatable {
     this.name,
     this.bio,
     this.avatarUrl,
+    this.bannerUrl,
     this.isOnline = false,
     this.joinedAt,
     this.stats,
@@ -19,6 +20,7 @@ class UserProfileModel extends Equatable {
   final String? name;
   final String? bio;
   final String? avatarUrl;
+  final String? bannerUrl;
   final bool isOnline;
   final DateTime? joinedAt;
   final UserProfileStats? stats;
@@ -32,6 +34,7 @@ class UserProfileModel extends Equatable {
       name: json['name'] as String?,
       bio: json['bio'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      bannerUrl: json['bannerUrl'] as String?,
       isOnline: json['isOnline'] as bool? ?? false,
       joinedAt: _parseDate(json['joinedAt']),
       stats: json['stats'] != null
@@ -54,6 +57,34 @@ class UserProfileModel extends Equatable {
     );
   }
 
+  UserProfileModel copyWith({
+    String? id,
+    String? name,
+    String? bio,
+    String? avatarUrl,
+    String? bannerUrl,
+    bool? isOnline,
+    DateTime? joinedAt,
+    UserProfileStats? stats,
+    UserProfileCrew? crew,
+    List<UserProfileVehicle>? garage,
+    List<UserProfileAchievement>? achievements,
+  }) {
+    return UserProfileModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      bio: bio ?? this.bio,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
+      isOnline: isOnline ?? this.isOnline,
+      joinedAt: joinedAt ?? this.joinedAt,
+      stats: stats ?? this.stats,
+      crew: crew ?? this.crew,
+      garage: garage ?? this.garage,
+      achievements: achievements ?? this.achievements,
+    );
+  }
+
   static DateTime? _parseDate(dynamic value) {
     if (value == null) return null;
     if (value is DateTime) return value;
@@ -66,6 +97,7 @@ class UserProfileModel extends Equatable {
         name,
         bio,
         avatarUrl,
+        bannerUrl,
         isOnline,
         joinedAt,
         stats,
@@ -226,4 +258,3 @@ class UserProfileAchievement extends Equatable {
   @override
   List<Object?> get props => [id, name, imageUrl, acquiredAt];
 }
-

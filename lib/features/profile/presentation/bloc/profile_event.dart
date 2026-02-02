@@ -10,7 +10,12 @@ abstract class ProfileEvent extends Equatable {
 
 /// Evento para carregar o perfil do usuário
 class ProfileLoadRequested extends ProfileEvent {
-  const ProfileLoadRequested();
+  const ProfileLoadRequested({this.force = false});
+
+  final bool force;
+
+  @override
+  List<Object?> get props => [force];
 }
 
 /// Evento para atualizar o perfil do usuário
@@ -48,4 +53,3 @@ class ProfileUpdateRequested extends ProfileEvent {
   @override
   List<Object?> get props => [name, bio];
 }
-

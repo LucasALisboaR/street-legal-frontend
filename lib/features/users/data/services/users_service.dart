@@ -11,6 +11,11 @@ import 'package:gearhead_br/features/users/data/models/user_model.dart';
 class UsersService extends BaseDataSource {
   UsersService(super.apiClient);
 
+  static const Duration _profileCacheTtl = Duration(minutes: 10);
+  UserProfileModel? _cachedProfile;
+  DateTime? _lastProfileFetchedAt;
+  Future<Either<ApiError, UserProfileModel>>? _profileRequest;
+
   Future<Either<ApiError, UserModel>> sync() {
     return executeRequest<UserModel>(
       request: () => apiClient.post(ApiEndpoints.usersSync),
@@ -61,11 +66,34 @@ class UsersService extends BaseDataSource {
     );
   }
 
-  Future<Either<ApiError, UserProfileModel>> getUserProfile(String userId) {
-    return executeRequest<UserProfileModel>(
+  Future<Either<ApiError, UserProfileModel>> getUserProfile(
+    String userId, {
+    bool force = false,
+  }) async {
+    if (!force && _isProfileCacheFresh()) {
+      return Right(_cachedProfile!);
+    }
+
+    if (_profileRequest != null) {
+      return _profileRequest!;
+    }
+
+    final request = executeRequest<UserProfileModel>(
       request: () => apiClient.get(ApiEndpoints.userById(userId)),
       fromJson: (json) =>
           UserProfileModel.fromJson(json as Map<String, dynamic>),
+    );
+
+    _profileRequest = request;
+    final result = await request;
+    _profileRequest = null;
+
+    return result.fold(
+      (error) => Left(error),
+      (profile) {
+        _cacheProfile(profile);
+        return Right(profile);
+      },
     );
   }
 
@@ -95,10 +123,9 @@ class UsersService extends BaseDataSource {
       );
 
       final data = response.data;
-      if (data is Map<String, dynamic> && data.containsKey('data')) {
-        return Right(UserProfileModel.fromJson(data['data'] as Map<String, dynamic>));
-      }
-      return Right(UserProfileModel.fromJson(data as Map<String, dynamic>));
+      final profile = _parseProfileResponse(data);
+      _cacheProfile(profile);
+      return Right(profile);
     } catch (e) {
       return handleError<UserProfileModel>(e);
     }
@@ -130,16 +157,15 @@ class UsersService extends BaseDataSource {
       );
 
       final data = response.data;
-      if (data is Map<String, dynamic> && data.containsKey('data')) {
-        return Right(UserProfileModel.fromJson(data['data'] as Map<String, dynamic>));
-      }
-      return Right(UserProfileModel.fromJson(data as Map<String, dynamic>));
+      final profile = _parseProfileResponse(data);
+      _cacheProfile(profile);
+      return Right(profile);
     } catch (e) {
       return handleError<UserProfileModel>(e);
     }
   }
 
-  Future<Either<ApiError, void>> updateProfile({
+  Future<Either<ApiError, UserProfileModel?>> updateProfile({
     required String userId,
     String? name,
     String? bio,
@@ -155,15 +181,47 @@ class UsersService extends BaseDataSource {
       );
       
       // Verificar se a resposta foi bem-sucedida (status 200-299)
-      if (response.statusCode != null && 
-          response.statusCode! >= 200 && 
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
           response.statusCode! < 300) {
+        final cachedProfile = _cachedProfile;
+        if (cachedProfile != null) {
+          final updatedProfile = cachedProfile.copyWith(
+            name: name ?? cachedProfile.name,
+            bio: bio ?? cachedProfile.bio,
+          );
+          _cacheProfile(updatedProfile);
+          return Right(updatedProfile);
+        }
         return const Right(null);
       }
-      
+
       return Left(ApiError.fromResponse(response.data, response.statusCode));
     } catch (e) {
-      return handleError<void>(e);
+      return handleError<UserProfileModel?>(e);
     }
+  }
+
+  UserProfileModel? getCachedProfile() => _cachedProfile;
+
+  void updateCachedProfile(UserProfileModel profile) {
+    _cacheProfile(profile);
+  }
+
+  bool _isProfileCacheFresh() {
+    if (_cachedProfile == null || _lastProfileFetchedAt == null) return false;
+    return DateTime.now().difference(_lastProfileFetchedAt!) < _profileCacheTtl;
+  }
+
+  void _cacheProfile(UserProfileModel profile) {
+    _cachedProfile = profile;
+    _lastProfileFetchedAt = DateTime.now();
+  }
+
+  UserProfileModel _parseProfileResponse(dynamic data) {
+    if (data is Map<String, dynamic> && data.containsKey('data')) {
+      return UserProfileModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return UserProfileModel.fromJson(data as Map<String, dynamic>);
   }
 }
