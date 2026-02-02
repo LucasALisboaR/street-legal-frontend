@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gearhead_br/core/storage/session_storage.dart';
 import 'package:gearhead_br/features/auth/domain/entities/user_entity.dart';
 import 'package:gearhead_br/features/auth/domain/usecases/register_usecase.dart';
+import 'package:gearhead_br/features/users/data/services/users_service.dart';
 
 part 'register_event.dart';
 part 'register_state.dart';
@@ -10,6 +12,8 @@ part 'register_state.dart';
 class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
   RegisterBloc({
     required this.registerUseCase,
+    required this.usersService,
+    required this.sessionStorage,
   }) : super(const RegisterState()) {
     on<RegisterNameChanged>(_onNameChanged);
     on<RegisterEmailChanged>(_onEmailChanged);
@@ -21,6 +25,8 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     on<RegisterSubmitted>(_onSubmitted);
   }
   final RegisterUseCase registerUseCase;
+  final UsersService usersService;
+  final SessionStorage sessionStorage;
 
   void _onNameChanged(
     RegisterNameChanged event,
@@ -101,6 +107,7 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
 
     emit(state.copyWith(status: RegisterStatus.loading, clearError: true));
 
+    // 1. Registrar no Firebase Auth
     final result = await registerUseCase(
       RegisterParams(
         email: state.email,
@@ -109,15 +116,34 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
       ),
     );
 
-    result.fold(
-      (failure) => emit(state.copyWith(
+    await result.fold(
+      (failure) async => emit(state.copyWith(
         status: RegisterStatus.failure,
         errorMessage: failure.message,
-      ),),
-      (user) => emit(state.copyWith(
-        status: RegisterStatus.success,
-        user: user,
-      ),),
+      )),
+      (user) async {
+        // 2. Após sucesso no Firebase, criar perfil no backend
+        // O token será automaticamente enviado pelo AuthInterceptor
+        final createUserResult = await usersService.createUser({
+          'name': state.name.isNotEmpty ? state.name : user.displayName ?? '',
+          'email': state.email,
+        });
+
+        await createUserResult.fold(
+          (error) async => emit(state.copyWith(
+            status: RegisterStatus.failure,
+            errorMessage: error.message,
+          )),
+          (backendUser) async {
+            // 3. Salvar usuário do backend no storage
+            await sessionStorage.saveUser(backendUser);
+            emit(state.copyWith(
+              status: RegisterStatus.success,
+              user: user,
+            ));
+          },
+        );
+      },
     );
   }
 }

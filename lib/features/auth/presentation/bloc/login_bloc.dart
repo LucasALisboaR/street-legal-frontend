@@ -79,7 +79,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       ),),
       (user) async {
         final syncResult = await usersService.sync();
-        syncResult.fold(
+        await syncResult.fold(
           (error) async {
             await authService.logout(redirectToLogin: false);
             emit(state.copyWith(

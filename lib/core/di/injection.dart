@@ -27,6 +27,12 @@ import 'package:gearhead_br/features/users/data/services/users_service.dart';
 final GetIt getIt = GetIt.instance;
 
 Future<void> configureDependencies() async {
+  // Reset GetIt se já estiver configurado (útil para hot reload)
+  // Isso garante que todas as dependências sejam registradas novamente
+  if (getIt.isRegistered<UsersService>() || getIt.isRegistered<ApiClient>()) {
+    getIt.reset();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // FIREBASE
   // ═══════════════════════════════════════════════════════════════════════════
@@ -145,6 +151,8 @@ Future<void> configureDependencies() async {
   getIt.registerFactory<RegisterBloc>(
     () => RegisterBloc(
       registerUseCase: getIt<RegisterUseCase>(),
+      usersService: getIt<UsersService>(),
+      sessionStorage: getIt<SessionStorage>(),
     ),
   );
 
