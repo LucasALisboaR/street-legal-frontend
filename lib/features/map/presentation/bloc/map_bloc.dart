@@ -5,6 +5,7 @@ import 'package:gearhead_br/features/map/data/services/location_service.dart';
 import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service.dart';
 import 'package:gearhead_br/features/map/domain/entities/map_user_entity.dart';
 import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
+import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
 import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 import 'package:gearhead_br/features/map/domain/utils/geo_utils.dart';
 import 'package:gearhead_br/features/map/domain/utils/navigation_metrics.dart';
@@ -70,6 +71,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   
   /// Última vez que processamos uma atualização de posição
   DateTime _lastPositionUpdate = DateTime.now();
+
+  /// Última vez que sincronizamos a localização com o backend
+  DateTime _lastLocationSyncAt = DateTime.fromMillisecondsSinceEpoch(0);
   
   /// Última vez que processamos progresso de navegação
   DateTime _lastProgressUpdate = DateTime.now();
@@ -79,6 +83,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   /// Intervalo mínimo entre updates de heading (ms)
   static const int _headingThrottleMs = 120;
+
+  /// Intervalo mínimo entre sincronizações de localização (ms)
+  static const int _locationSyncThrottleMs = 5000;
 
   /// Tempo máximo para considerar heading do device como válido
   static const Duration _deviceHeadingTimeout = Duration(seconds: 2);
@@ -216,6 +223,26 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     if (state.isNavigating) {
       add(NavigationProgressUpdated(currentPosition: event.position));
     }
+
+    _syncUserLocation(event.position);
+  }
+
+  void _syncUserLocation(MapPoint position) {
+    final now = DateTime.now();
+    if (now.difference(_lastLocationSyncAt).inMilliseconds <
+        _locationSyncThrottleMs) {
+      return;
+    }
+    _lastLocationSyncAt = now;
+
+    _mapRepository.updateUserLocation(
+      LocationEntity(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        address: null,
+        timestamp: now,
+      ),
+    );
   }
 
   void _onUserHeadingUpdated(

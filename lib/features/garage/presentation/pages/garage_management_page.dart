@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:gearhead_br/core/di/injection.dart';
 import 'package:gearhead_br/core/theme/app_colors.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
 import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
@@ -16,7 +17,7 @@ class GarageManagementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => GarageBloc()..add(const GarageLoadRequested()),
+      create: (context) => getIt<GarageBloc>()..add(const GarageLoadRequested()),
       child: const _GarageManagementView(),
     );
   }
@@ -56,6 +57,50 @@ class _GarageManagementView extends StatelessWidget {
             return const Center(
               child: CircularProgressIndicator(
                 color: AppColors.accent,
+              ),
+            );
+          }
+
+          if (state.status == GarageStatus.error) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.accent,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      state.errorMessage ?? 'Não foi possível carregar a garagem.',
+                      style: GoogleFonts.rajdhani(
+                        color: AppColors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                      ),
+                      onPressed: () => context
+                          .read<GarageBloc>()
+                          .add(const GarageLoadRequested()),
+                      child: Text(
+                        'Tentar novamente',
+                        style: GoogleFonts.orbitron(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }

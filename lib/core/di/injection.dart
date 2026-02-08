@@ -1,5 +1,4 @@
 import 'package:get_it/get_it.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:gearhead_br/core/auth/auth_service.dart';
 import 'package:gearhead_br/core/network/api_client.dart';
@@ -7,6 +6,7 @@ import 'package:gearhead_br/core/network/interceptors/auth_interceptor.dart';
 import 'package:gearhead_br/core/network/interceptors/error_interceptor.dart';
 import 'package:gearhead_br/core/constants/mapbox_constants.dart';
 import 'package:gearhead_br/core/storage/session_storage.dart';
+import 'package:gearhead_br/features/auth/data/services/auth_api_service.dart';
 import 'package:gearhead_br/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:gearhead_br/features/auth/domain/repositories/auth_repository.dart';
 import 'package:gearhead_br/features/auth/domain/usecases/forgot_password_usecase.dart';
@@ -15,13 +15,21 @@ import 'package:gearhead_br/features/auth/domain/usecases/register_usecase.dart'
 import 'package:gearhead_br/features/auth/presentation/bloc/forgot_password_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:gearhead_br/features/auth/presentation/bloc/register_bloc.dart';
+import 'package:gearhead_br/features/crew/data/services/crew_service.dart';
+import 'package:gearhead_br/features/crew/presentation/bloc/crew_bloc.dart';
+import 'package:gearhead_br/features/events/data/services/events_service.dart';
+import 'package:gearhead_br/features/events/presentation/bloc/events_bloc.dart';
 import 'package:gearhead_br/features/garage/data/services/garage_service.dart';
+import 'package:gearhead_br/features/garage/presentation/bloc/garage_bloc.dart';
 import 'package:gearhead_br/features/map/data/services/heading_service.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
+import 'package:gearhead_br/features/map/data/services/map_service.dart';
 import 'package:gearhead_br/features/map/data/services/mapbox_navigation_service.dart';
 import 'package:gearhead_br/features/map/data/repositories/map_repository_impl.dart';
 import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 import 'package:gearhead_br/features/map/presentation/bloc/map_bloc.dart';
+import 'package:gearhead_br/features/moments/data/services/moments_service.dart';
+import 'package:gearhead_br/features/moments/presentation/bloc/moments_bloc.dart';
 import 'package:gearhead_br/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:gearhead_br/features/users/data/services/users_service.dart';
 
@@ -35,12 +43,8 @@ Future<void> configureDependencies() async {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FIREBASE
+  // STORAGE
   // ═══════════════════════════════════════════════════════════════════════════
-  
-  getIt.registerLazySingleton<FirebaseAuth>(
-    () => FirebaseAuth.instance,
-  );
 
   getIt.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(),
@@ -52,7 +56,6 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<AuthService>(
     () => AuthService(
-      firebaseAuth: getIt<FirebaseAuth>(),
       sessionStorage: getIt<SessionStorage>(),
     ),
   );
@@ -64,8 +67,7 @@ Future<void> configureDependencies() async {
   // Registrar AuthInterceptor
   getIt.registerLazySingleton<AuthInterceptor>(
     () => AuthInterceptor(
-      getIt<FirebaseAuth>(),
-      getIt<AuthService>(),
+      getIt<SessionStorage>(),
     ),
   );
 
@@ -104,8 +106,28 @@ Future<void> configureDependencies() async {
     () => UsersService(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<AuthApiService>(
+    () => AuthApiService(getIt<ApiClient>()),
+  );
+
   getIt.registerLazySingleton<GarageService>(
     () => GarageService(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<EventsService>(
+    () => EventsService(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<CrewService>(
+    () => CrewService(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<MomentsService>(
+    () => MomentsService(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<MapService>(
+    () => MapService(getIt<ApiClient>()),
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -113,11 +135,17 @@ Future<void> configureDependencies() async {
   // ═══════════════════════════════════════════════════════════════════════════
   
   getIt.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(getIt<FirebaseAuth>()),
+    () => AuthRepositoryImpl(
+      authApiService: getIt<AuthApiService>(),
+      sessionStorage: getIt<SessionStorage>(),
+    ),
   );
 
   getIt.registerLazySingleton<MapRepository>(
-    () => MapRepositoryImpl(getIt<LocationService>()),
+    () => MapRepositoryImpl(
+      locationService: getIt<LocationService>(),
+      mapService: getIt<MapService>(),
+    ),
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -160,6 +188,33 @@ Future<void> configureDependencies() async {
   getIt.registerFactory<ForgotPasswordBloc>(
     () => ForgotPasswordBloc(
       forgotPasswordUseCase: getIt<ForgotPasswordUseCase>(),
+    ),
+  );
+
+  getIt.registerFactory<GarageBloc>(
+    () => GarageBloc(
+      garageService: getIt<GarageService>(),
+      sessionStorage: getIt<SessionStorage>(),
+    ),
+  );
+
+  getIt.registerFactory<EventsBloc>(
+    () => EventsBloc(
+      eventsService: getIt<EventsService>(),
+    ),
+  );
+
+  getIt.registerFactory<CrewBloc>(
+    () => CrewBloc(
+      crewService: getIt<CrewService>(),
+      sessionStorage: getIt<SessionStorage>(),
+    ),
+  );
+
+  getIt.registerFactory<MomentsBloc>(
+    () => MomentsBloc(
+      momentsService: getIt<MomentsService>(),
+      sessionStorage: getIt<SessionStorage>(),
     ),
   );
 

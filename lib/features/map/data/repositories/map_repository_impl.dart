@@ -1,40 +1,33 @@
 import 'package:dartz/dartz.dart';
-import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
-import 'dart:math';
-import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 import 'package:gearhead_br/features/map/data/services/location_service.dart';
-import 'package:gearhead_br/features/map/domain/entities/navigation_entity.dart';
-import 'package:gearhead_br/features/map/domain/utils/geo_utils.dart';
+import 'package:gearhead_br/features/map/data/services/map_service.dart';
+import 'package:gearhead_br/features/map/domain/entities/location_entity.dart';
+import 'package:gearhead_br/features/map/domain/repositories/map_repository.dart';
 
-/// Implementação do repositório do mapa com geolocator
+/// Implementação do repositório do mapa com geolocator e API
 class MapRepositoryImpl implements MapRepository {
+  MapRepositoryImpl({
+    required LocationService locationService,
+    required MapService mapService,
+  })  : _locationService = locationService,
+        _mapService = mapService;
+
   final LocationService _locationService;
-
-  MapRepositoryImpl(this._locationService);
-  static const double _minNearbyDistanceMeters = 500;
-
-  Random _seededRandom(double latitude, double longitude, int salt) {
-    final latSeed = (latitude * 10000).round();
-    final lonSeed = (longitude * 10000).round();
-    return Random(latSeed ^ (lonSeed << 1) ^ salt);
-  }
+  final MapService _mapService;
 
   @override
   Future<Either<MapFailure, LocationEntity>> getCurrentLocation() async {
     try {
-      // Verifica se o serviço de localização está habilitado
       final isEnabled = await _locationService.isLocationServiceEnabled();
       if (!isEnabled) {
         return const Left(LocationServiceFailure());
       }
 
-      // Verifica e solicita permissões
       final hasPermission = await _locationService.checkAndRequestPermissions();
       if (!hasPermission) {
         return const Left(LocationPermissionFailure());
       }
 
-      // Obtém a localização atual
       final position = await _locationService.getCurrentPosition();
       if (position == null) {
         return const Left(LocationPermissionFailure());
@@ -43,10 +36,10 @@ class MapRepositoryImpl implements MapRepository {
       return Right(LocationEntity(
         latitude: position.latitude,
         longitude: position.longitude,
-        address: null, // Pode ser implementado com geocoding depois
+        address: null,
         timestamp: DateTime.now(),
       ));
-    } catch (e) {
+    } catch (_) {
       return Left(LocationServiceFailure());
     }
   }
@@ -57,124 +50,16 @@ class MapRepositoryImpl implements MapRepository {
     required double longitude,
     double radiusKm = 10,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // Mock existente reutilizado, agora adaptado para ancorar nos arredores do usuário.
-    final anchor = MapPoint(latitude: latitude, longitude: longitude);
-    final radiusMeters = (radiusKm * 1000).clamp(500, 2000).toDouble();
-    final rng = _seededRandom(latitude, longitude, 11);
+    final result = await _mapService.getNearbyMeetups(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+    );
 
-    final meetupLocations = [
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-    ];
-
-    // Mock: retorna alguns encontros de exemplo
-    return Right([
-      MeetupEntity(
-        id: '1',
-        name: 'Encontro de Opalas',
-        description: 'Encontro semanal de entusiastas de Opala',
-        location: LocationEntity(
-          latitude: meetupLocations[0].latitude,
-          longitude: meetupLocations[0].longitude,
-          address: 'Praça da Sé, São Paulo',
-          timestamp: DateTime.now(),
-        ),
-        startTime: DateTime.now().add(const Duration(hours: 3)),
-        organizerId: 'user-1',
-        participantIds: const ['user-2', 'user-3', 'user-4'],
-        color: '#FF4500', // Laranja (accent)
-      ),
-      MeetupEntity(
-        id: '2',
-        name: 'Role VW Ar',
-        description: 'Fusca, Kombi, Brasilia e toda linha VW refrigerada a ar',
-        location: LocationEntity(
-          latitude: meetupLocations[1].latitude,
-          longitude: meetupLocations[1].longitude,
-          address: 'Ibirapuera, São Paulo',
-          timestamp: DateTime.now(),
-        ),
-        startTime: DateTime.now().add(const Duration(days: 1)),
-        organizerId: 'user-5',
-        participantIds: const ['user-6', 'user-7'],
-        color: '#00E676', // verde (success)
-      ),
-      MeetupEntity(
-        id: '3',
-        name: 'Tunagem Japonesa',
-        description: 'Encontro de carros japoneses tunados',
-        location: LocationEntity(
-          latitude: meetupLocations[2].latitude,
-          longitude: meetupLocations[2].longitude,
-          address: 'Av. Paulista, São Paulo',
-          timestamp: DateTime.now(),
-        ),
-        startTime: DateTime.now().add(const Duration(hours: 6)),
-        organizerId: 'user-8',
-        participantIds: const ['user-9', 'user-10', 'user-11', 'user-12'],
-        color: '#00B0FF', // Azul (info)
-      ),
-      MeetupEntity(
-        id: '4',
-        name: 'Classic Cars Show',
-        description: 'Exposição de carros clássicos e antigos',
-        location: LocationEntity(
-          latitude: meetupLocations[3].latitude,
-          longitude: meetupLocations[3].longitude,
-          address: 'Parque Villa-Lobos, São Paulo',
-          timestamp: DateTime.now(),
-        ),
-        startTime: DateTime.now().add(const Duration(days: 2)),
-        organizerId: 'user-13',
-        participantIds: const ['user-14', 'user-15'],
-        color: '#FFEA00', // Amarelo (warning)
-      ),
-      MeetupEntity(
-        id: '5',
-        name: 'Drift Night',
-        description: 'Noite de drift e manobras',
-        location: LocationEntity(
-          latitude: meetupLocations[4].latitude,
-          longitude: meetupLocations[4].longitude,
-          address: 'Autódromo de Interlagos, São Paulo',
-          timestamp: DateTime.now(),
-        ),
-        startTime: DateTime.now().add(const Duration(hours: 12)),
-        organizerId: 'user-16',
-        participantIds: const ['user-17', 'user-18', 'user-19', 'user-20', 'user-21'],
-        color: '#FF1744', // Vermelho (error)
-      ),
-    ]);
+    return result.fold(
+      (_) => const Left(MapNetworkFailure()),
+      (meetups) => Right(meetups),
+    );
   }
 
   @override
@@ -183,113 +68,26 @@ class MapRepositoryImpl implements MapRepository {
     required double longitude,
     double radiusKm = 5,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Mock existente reutilizado, agora adaptado para coordenadas próximas ao usuário.
-    final anchor = MapPoint(latitude: latitude, longitude: longitude);
-    final radiusMeters = (radiusKm * 1000).clamp(500, 2000).toDouble();
-    final rng = _seededRandom(latitude, longitude, 22);
+    final result = await _mapService.getNearbyUsers(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+    );
 
-    final userLocations = [
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-      randomOffsetAround(
-        origin: anchor,
-        minDistanceMeters: _minNearbyDistanceMeters,
-        maxDistanceMeters: radiusMeters,
-        random: rng,
-      ),
-    ];
-
-    final distances = userLocations
-        .map((point) => haversineDistanceMeters(anchor, point) / 1000)
-        .toList();
-
-    // Mock: retorna alguns usuários próximos
-    return Right([
-      {
-        'id': 'user-2',
-        'displayName': 'Carlos Turbo',
-        'vehicle': 'Civic Si',
-        'vehicleImageUrl': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80',
-        'distance': distances[0],
-        'latitude': userLocations[0].latitude,
-        'longitude': userLocations[0].longitude,
-      },
-      {
-        'id': 'user-3',
-        'displayName': 'Pedro V8',
-        'vehicle': 'Mustang GT',
-        'distance': distances[1],
-        'latitude': userLocations[1].latitude,
-        'longitude': userLocations[1].longitude,
-      },
-      {
-        'id': 'user-4',
-        'displayName': 'Ana Drift',
-        'vehicle': 'Silvia S15',
-        'distance': distances[2],
-        'latitude': userLocations[2].latitude,
-        'longitude': userLocations[2].longitude,
-      },
-      {
-        'id': 'user-5',
-        'displayName': 'Lucas JDM',
-        'vehicle': 'Supra MK4',
-        'distance': distances[3],
-        'latitude': userLocations[3].latitude,
-        'longitude': userLocations[3].longitude,
-      },
-      {
-        'id': 'user-6',
-        'displayName': 'Rafael Classic',
-        'vehicle': 'Fusca 1972',
-        'distance': distances[4],
-        'latitude': userLocations[4].latitude,
-        'longitude': userLocations[4].longitude,
-      },
-      {
-        'id': 'user-7',
-        'displayName': 'Mariana Speed',
-        'vehicle': 'Golf GTI',
-        'distance': distances[5],
-        'latitude': userLocations[5].latitude,
-        'longitude': userLocations[5].longitude,
-      },
-    ]);
+    return result.fold(
+      (_) => const Left(MapNetworkFailure()),
+      (users) => Right(users),
+    );
   }
 
   @override
-  Future<Either<MapFailure, void>> updateUserLocation(LocationEntity location) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return const Right(null);
+  Future<Either<MapFailure, void>> updateUserLocation(
+    LocationEntity location,
+  ) async {
+    final result = await _mapService.updateUserLocation(location);
+    return result.fold(
+      (_) => const Left(MapNetworkFailure()),
+      (_) => const Right(null),
+    );
   }
 }

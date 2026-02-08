@@ -26,7 +26,7 @@ class ProfilePage extends StatelessWidget {
           create: (context) => getIt<ProfileBloc>()..add(const ProfileLoadRequested()),
         ),
         BlocProvider(
-          create: (context) => GarageBloc()..add(const GarageLoadRequested()),
+          create: (context) => getIt<GarageBloc>()..add(const GarageLoadRequested()),
         ),
       ],
       child: const _ProfileView(),

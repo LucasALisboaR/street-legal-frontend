@@ -107,7 +107,6 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
 
     emit(state.copyWith(status: RegisterStatus.loading, clearError: true));
 
-    // 1. Registrar no Firebase Auth
     final result = await registerUseCase(
       RegisterParams(
         email: state.email,
@@ -122,20 +121,13 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
         errorMessage: failure.message,
       )),
       (user) async {
-        // 2. Após sucesso no Firebase, criar perfil no backend
-        // O token será automaticamente enviado pelo AuthInterceptor
-        final createUserResult = await usersService.createUser({
-          'name': state.name.isNotEmpty ? state.name : user.displayName ?? '',
-          'email': state.email,
-        });
-
-        await createUserResult.fold(
+        final syncResult = await usersService.sync();
+        await syncResult.fold(
           (error) async => emit(state.copyWith(
             status: RegisterStatus.failure,
             errorMessage: error.message,
           )),
           (backendUser) async {
-            // 3. Salvar usuário do backend no storage
             await sessionStorage.saveUser(backendUser);
             emit(state.copyWith(
               status: RegisterStatus.success,
@@ -147,4 +139,3 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     );
   }
 }
-
