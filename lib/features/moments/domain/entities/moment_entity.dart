@@ -55,5 +55,38 @@ class MomentEntity extends Equatable {
         locationName,
         createdAt,
       ];
-}
 
+  MomentEntity copyWith({
+    String? id,
+    String? userId,
+    String? userDisplayName,
+    String? userAvatarUrl,
+    String? vehicleId,
+    String? vehicleName,
+    String? caption,
+    List<String>? imageUrls,
+    List<String>? likeUserIds,
+    int? commentCount,
+    double? latitude,
+    double? longitude,
+    String? locationName,
+    DateTime? createdAt,
+  }) {
+    return MomentEntity(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      userDisplayName: userDisplayName ?? this.userDisplayName,
+      userAvatarUrl: userAvatarUrl ?? this.userAvatarUrl,
+      vehicleId: vehicleId ?? this.vehicleId,
+      vehicleName: vehicleName ?? this.vehicleName,
+      caption: caption ?? this.caption,
+      imageUrls: imageUrls ?? this.imageUrls,
+      likeUserIds: likeUserIds ?? this.likeUserIds,
+      commentCount: commentCount ?? this.commentCount,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      locationName: locationName ?? this.locationName,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}

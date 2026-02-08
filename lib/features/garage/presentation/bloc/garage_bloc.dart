@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gearhead_br/core/storage/session_storage.dart';
+import 'package:gearhead_br/features/garage/data/services/garage_service.dart';
 import 'package:gearhead_br/features/garage/domain/entities/vehicle_entity.dart';
 
 part 'garage_event.dart';
@@ -8,7 +10,12 @@ part 'garage_state.dart';
 /// BLoC responsável pela gestão da Garagem
 /// Gerencia veículos e seleção do veículo ativo
 class GarageBloc extends Bloc<GarageEvent, GarageState> {
-  GarageBloc() : super(const GarageState()) {
+  GarageBloc({
+    required GarageService garageService,
+    required SessionStorage sessionStorage,
+  })  : _garageService = garageService,
+        _sessionStorage = sessionStorage,
+        super(const GarageState()) {
     on<GarageLoadRequested>(_onLoadRequested);
     on<GarageVehicleAdded>(_onVehicleAdded);
     on<GarageVehicleUpdated>(_onVehicleUpdated);
@@ -16,49 +23,36 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
     on<GarageActiveVehicleChanged>(_onActiveVehicleChanged);
   }
 
+  final GarageService _garageService;
+  final SessionStorage _sessionStorage;
+
   Future<void> _onLoadRequested(
     GarageLoadRequested event,
     Emitter<GarageState> emit,
   ) async {
     emit(state.copyWith(status: GarageStatus.loading));
 
-    // Mock: simula carregamento de veículos
-    await Future.delayed(const Duration(seconds: 1));
+    final userId = await _sessionStorage.getUserId();
+    if (userId == null || userId.isEmpty) {
+      emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: 'Usuário não autenticado.',
+      ));
+      return;
+    }
 
-    final mockVehicles = [
-      VehicleEntity(
-        id: '1',
-        userId: 'user-1',
-        brand: 'Chevrolet',
-        model: 'Opala Comodoro',
-        year: 1988,
-        nickname: 'Opalão',
-        color: 'Preto',
-        licensePlate: 'ABC-1234',
-        photoUrls: const [],
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      VehicleEntity(
-        id: '2',
-        userId: 'user-1',
-        brand: 'Volkswagen',
-        model: 'Fusca 1500',
-        year: 1972,
-        nickname: 'Fuscão',
-        color: 'Azul',
-        licensePlate: 'XYZ-5678',
-        photoUrls: const [],
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    emit(state.copyWith(
-      status: GarageStatus.loaded,
-      vehicles: mockVehicles,
-      activeVehicleId: mockVehicles.isNotEmpty ? mockVehicles.first.id : null,
-    ),);
+    final result = await _garageService.getGarage(userId);
+    result.fold(
+      (error) => emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: error.message,
+      )),
+      (vehicles) => emit(state.copyWith(
+        status: GarageStatus.loaded,
+        vehicles: vehicles,
+        activeVehicleId: vehicles.isNotEmpty ? vehicles.first.id : null,
+      )),
+    );
   }
 
   Future<void> _onVehicleAdded(
@@ -67,16 +61,30 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
   ) async {
     emit(state.copyWith(status: GarageStatus.loading));
 
-    // Mock: simula adição
-    await Future.delayed(const Duration(milliseconds: 500));
+    final userId = await _sessionStorage.getUserId();
+    if (userId == null || userId.isEmpty) {
+      emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: 'Usuário não autenticado.',
+      ));
+      return;
+    }
 
-    final newVehicles = [...state.vehicles, event.vehicle];
-    emit(state.copyWith(
-      status: GarageStatus.loaded,
-      vehicles: newVehicles,
-      activeVehicleId:
-          state.activeVehicleId ?? event.vehicle.id, // Define como ativo se for o primeiro
-    ),);
+    final result = await _garageService.addVehicle(
+      userId,
+      _vehiclePayload(event.vehicle),
+    );
+    result.fold(
+      (error) => emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: error.message,
+      )),
+      (vehicle) => emit(state.copyWith(
+        status: GarageStatus.loaded,
+        vehicles: [...state.vehicles, vehicle],
+        activeVehicleId: state.activeVehicleId ?? vehicle.id,
+      )),
+    );
   }
 
   Future<void> _onVehicleUpdated(
@@ -85,16 +93,36 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
   ) async {
     emit(state.copyWith(status: GarageStatus.loading));
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    final userId = await _sessionStorage.getUserId();
+    if (userId == null || userId.isEmpty) {
+      emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: 'Usuário não autenticado.',
+      ));
+      return;
+    }
 
-    final updatedVehicles = state.vehicles.map((v) {
-      return v.id == event.vehicle.id ? event.vehicle : v;
-    }).toList();
+    final result = await _garageService.updateVehicle(
+      userId,
+      event.vehicle.id,
+      _vehiclePayload(event.vehicle),
+    );
+    result.fold(
+      (error) => emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: error.message,
+      )),
+      (vehicle) {
+        final updatedVehicles = state.vehicles.map((v) {
+          return v.id == vehicle.id ? vehicle : v;
+        }).toList();
 
-    emit(state.copyWith(
-      status: GarageStatus.loaded,
-      vehicles: updatedVehicles,
-    ),);
+        emit(state.copyWith(
+          status: GarageStatus.loaded,
+          vehicles: updatedVehicles,
+        ));
+      },
+    );
   }
 
   Future<void> _onVehicleDeleted(
@@ -103,23 +131,38 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
   ) async {
     emit(state.copyWith(status: GarageStatus.loading));
 
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final updatedVehicles =
-        state.vehicles.where((v) => v.id != event.vehicleId).toList();
-
-    // Se deletou o veículo ativo, seleciona o primeiro disponível
-    String? newActiveId = state.activeVehicleId;
-    if (state.activeVehicleId == event.vehicleId) {
-      newActiveId = updatedVehicles.isNotEmpty ? updatedVehicles.first.id : null;
+    final userId = await _sessionStorage.getUserId();
+    if (userId == null || userId.isEmpty) {
+      emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: 'Usuário não autenticado.',
+      ));
+      return;
     }
 
-    emit(state.copyWith(
-      status: GarageStatus.loaded,
-      vehicles: updatedVehicles,
-      activeVehicleId: newActiveId,
-      clearActiveVehicle: newActiveId == null,
-    ),);
+    final result = await _garageService.deleteVehicle(userId, event.vehicleId);
+    result.fold(
+      (error) => emit(state.copyWith(
+        status: GarageStatus.error,
+        errorMessage: error.message,
+      )),
+      (_) {
+        final updatedVehicles =
+            state.vehicles.where((v) => v.id != event.vehicleId).toList();
+
+        String? newActiveId = state.activeVehicleId;
+        if (state.activeVehicleId == event.vehicleId) {
+          newActiveId = updatedVehicles.isNotEmpty ? updatedVehicles.first.id : null;
+        }
+
+        emit(state.copyWith(
+          status: GarageStatus.loaded,
+          vehicles: updatedVehicles,
+          activeVehicleId: newActiveId,
+          clearActiveVehicle: newActiveId == null,
+        ));
+      },
+    );
   }
 
   void _onActiveVehicleChanged(
@@ -128,5 +171,17 @@ class GarageBloc extends Bloc<GarageEvent, GarageState> {
   ) {
     emit(state.copyWith(activeVehicleId: event.vehicleId));
   }
-}
 
+  Map<String, dynamic> _vehiclePayload(VehicleEntity vehicle) {
+    return {
+      'brand': vehicle.brand,
+      'model': vehicle.model,
+      'year': vehicle.year,
+      if (vehicle.nickname != null) 'nickname': vehicle.nickname,
+      if (vehicle.color != null) 'color': vehicle.color,
+      if (vehicle.licensePlate != null) 'licensePlate': vehicle.licensePlate,
+      if (vehicle.photoUrls.isNotEmpty) 'photoUrls': vehicle.photoUrls,
+      if (vehicle.specs != null) 'specs': vehicle.specs,
+    };
+  }
+}

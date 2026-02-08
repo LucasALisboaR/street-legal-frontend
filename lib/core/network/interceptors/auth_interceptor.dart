@@ -1,57 +1,22 @@
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:gearhead_br/core/auth/auth_service.dart';
+import 'package:gearhead_br/core/storage/session_storage.dart';
 
 /// Interceptor para adicionar token de autenticação nas requisições
 /// 
-/// Obtém o token do Firebase Auth e adiciona no header Authorization
+/// Obtém o token salvo na sessão e adiciona no header Authorization
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor(this._firebaseAuth, this._authService);
+  AuthInterceptor(this._sessionStorage);
 
-  final FirebaseAuth _firebaseAuth;
-  final AuthService _authService;
+  final SessionStorage _sessionStorage;
 
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // Obter token do Firebase Auth
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      await _authService.logout();
-      return handler.reject(
-        DioException(
-          requestOptions: options,
-          type: DioExceptionType.cancel,
-          error: 'Usuário não autenticado',
-        ),
-      );
-    }
-
-    try {
-      final token = await user.getIdToken();
-      if (token == null || token.isEmpty) {
-        await _authService.logout();
-        return handler.reject(
-          DioException(
-            requestOptions: options,
-            type: DioExceptionType.cancel,
-            error: 'Token inválido',
-          ),
-        );
-      }
-      // Adicionar token no header Authorization
+    final token = await _sessionStorage.getAccessToken();
+    if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
-    } catch (_) {
-      await _authService.logout();
-      return handler.reject(
-        DioException(
-          requestOptions: options,
-          type: DioExceptionType.cancel,
-          error: 'Falha ao obter token',
-        ),
-      );
     }
 
     return handler.next(options);
